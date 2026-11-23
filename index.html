@@ -373,85 +373,114 @@
             // ==========================================
             const leftTempleC = Math.floor(COLS * 0.22);
             const templeHalfW = Math.floor(COLS * 0.14);
-            const wallH = Math.floor(ROWS * 0.11);
-            const roofH = Math.floor(ROWS * 0.20);
+            const wallH = Math.floor(ROWS * 0.10);
+            const roofH = Math.floor(ROWS * 0.22);
             const wallTop = horizonR - wallH;
             const roofPeakR = wallTop - roofH;
 
-            // ผืนหลังคาวัดทรงจั่วแน่นๆ (Solid Gabled Roof)
-            for (let r = roofPeakR; r < wallTop; r++) {
-                const prog = (r - roofPeakR) / roofH;
-                const halfSpan = Math.floor(prog * templeHalfW);
+            // ---------- หลังคาลดชั้นทรงจั่ว 3 ต่อ (Multi-tier curved Thai roof) ----------
+            const roofGold = ["^", "%", "=", "#"]; // ลวดลายกระเบื้อง
+            const tiers = 3;
+            const tierEdgeGlow = [];
+            for (let tier = tiers - 1; tier >= 0; tier--) {
+                const tierProg = tier / (tiers - 1);
+                const tierRoofTop = roofPeakR + Math.floor(roofH * tierProg * 0.62);
+                const tierRoofBot = (tier === 0) ? wallTop : Math.floor(roofPeakR + roofH * ((tier - 1) / (tiers - 1)) * 0.62);
+                const tierHalfSpan = Math.floor(templeHalfW * (0.45 + 0.55 * tierProg));
 
-                for (let dc = -halfSpan; dc <= halfSpan; dc++) {
-                    const c = leftTempleC + dc;
-                    if (c < 0 || c >= COLS) continue;
+                for (let r = tierRoofTop; r < tierRoofBot; r++) {
+                    const prog = (r - tierRoofTop) / Math.max(1, tierRoofBot - tierRoofTop);
+                    // โค้งเว้าแบบหลังคาไทย (แผ่นหลังคาโค้งขึ้นที่ปลาย)
+                    const halfSpan = Math.floor(tierHalfSpan * Math.pow(prog, 0.72));
 
-                    const isRidge = (Math.abs(dc) === halfSpan);
-                    if (isRidge) {
-                        gridChar[r][c] = "%";
-                        gridR[r][c] = 245; gridG[r][c] = 155; gridB[r][c] = 50;
-                        gridGlow[r][c] = 1;
-                    } else if (r === roofPeakR) {
-                        gridChar[r][c] = "^";
-                        gridR[r][c] = 255; gridG[r][c] = 190; gridB[r][c] = 60;
-                        gridGlow[r][c] = 2;
-                    } else {
-                        const tileTier = (r % 3 === 0);
-                        gridChar[r][c] = tileTier ? "=" : (Math.abs(dc) % 2 === 0 ? "#" : "%");
-                        gridR[r][c] = tileTier ? 210 : 185;
-                        gridG[r][c] = tileTier ? 115 : 95;
-                        gridB[r][c] = tileTier ? 45 : 35;
+                    for (let dc = -halfSpan; dc <= halfSpan; dc++) {
+                        const c = leftTempleC + dc;
+                        if (c < 0 || c >= COLS) continue;
+
+                        const ad = Math.abs(dc);
+                        if (r === tierRoofTop) {
+                            gridChar[r][c] = "^";
+                            gridR[r][c] = 255; gridG[r][c] = 200; gridB[r][c] = 70;
+                            gridGlow[r][c] = 2;
+                        } else if (ad >= halfSpan - 1) {
+                            gridChar[r][c] = "%";
+                            gridR[r][c] = 245; gridG[r][c] = 165; gridB[r][c] = 55;
+                            gridGlow[r][c] = 1;
+                        } else {
+                            const tileTier = ((r - tierRoofTop) % 3 === 0);
+                            gridChar[r][c] = tileTier ? "=" : (ad % 2 === 0 ? "#" : "%");
+                            gridR[r][c] = tileTier ? 215 : 180;
+                            gridG[r][c] = tileTier ? 120 : 95;
+                            gridB[r][c] = tileTier ? 48 : 38;
+                        }
+                    }
+                }
+
+                // ช่อฟ้า-หางหงส์ปลายโค้ง (curved finials at each tier's outer corner)
+                const finialR = tierRoofBot - 1;
+                const finialCol = [leftTempleC - tierHalfSpan, leftTempleC + tierHalfSpan];
+                for (const fc of finialCol) {
+                    if (fc >= 0 && fc < COLS && finialR >= 0) {
+                        gridChar[finialR][fc] = "^";
+                        gridR[finialR][fc] = 255; gridG[finialR][fc] = 215; gridB[finialR][fc] = 80;
+                        gridGlow[finialR][fc] = 2;
+                        if (finialR - 1 >= 0) {
+                            const tipFc = fc + (fc < leftTempleC ? -1 : 1);
+                            if (tipFc >= 0 && tipFc < COLS) {
+                                gridChar[finialR - 1][tipFc] = "/";
+                                gridR[finialR - 1][tipFc] = 255; gridG[finialR - 1][tipFc] = 225; gridB[finialR - 1][tipFc] = 95;
+                                gridGlow[finialR - 1][tipFc] = 2;
+                            }
+                        }
                     }
                 }
             }
 
-            // ยอดช่อฟ้าปลายจั่ว
+            // ยอดแหลมสุดหลังคา + เม็ดทอง
             if (roofPeakR - 1 >= 0 && leftTempleC < COLS) {
-                gridChar[roofPeakR - 1][leftTempleC] = "^";
-                gridR[roofPeakR - 1][leftTempleC] = 255; gridG[roofPeakR - 1][leftTempleC] = 210; gridB[roofPeakR - 1][leftTempleC] = 70;
+                gridChar[roofPeakR - 1][leftTempleC] = "!";
+                gridR[roofPeakR - 1][leftTempleC] = 255; gridG[roofPeakR - 1][leftTempleC] = 220; gridB[roofPeakR - 1][leftTempleC] = 85;
                 gridGlow[roofPeakR - 1][leftTempleC] = 2;
             }
-            if (wallTop - 1 >= 0) {
-                const leftTipC = leftTempleC - templeHalfW;
-                const rightTipC = leftTempleC + templeHalfW;
-                if (leftTipC >= 0) {
-                    gridChar[wallTop - 1][leftTipC] = "^";
-                    gridR[wallTop - 1][leftTipC] = 255; gridG[wallTop - 1][leftTipC] = 190; gridB[wallTop - 1][leftTipC] = 60;
-                    gridGlow[wallTop - 1][leftTipC] = 2;
-                }
-                if (rightTipC < COLS) {
-                    gridChar[wallTop - 1][rightTipC] = "^";
-                    gridR[wallTop - 1][rightTipC] = 255; gridG[wallTop - 1][rightTipC] = 190; gridB[wallTop - 1][rightTipC] = 60;
-                    gridGlow[wallTop - 1][rightTipC] = 2;
-                }
-            }
 
-            // หน้าบันกนกสีทอง
-            const pedimentH = Math.floor(roofH * 0.50);
+            // ---------- หน้าบันลายกนกสีทองแบบแอ่งโค้ง (inlaid golden pediment) ----------
+            const pedimentH = Math.floor(roofH * 0.42);
             for (let r = wallTop - pedimentH; r < wallTop; r++) {
-                const pSpan = Math.floor(((r - (wallTop - pedimentH)) / pedimentH) * (templeHalfW * 0.55));
+                const pr = (r - (wallTop - pedimentH)) / pedimentH;
+                const pSpan = Math.floor(pr * (templeHalfW * 0.60));
                 for (let dc = -pSpan; dc <= pSpan; dc++) {
                     const c = leftTempleC + dc;
                     if (c >= 0 && c < COLS) {
-                        gridChar[r][c] = "*";
-                        gridR[r][c] = 255; gridG[r][c] = 195; gridB[r][c] = 60;
-                        gridGlow[r][c] = 1;
+                        const pc = Math.abs(dc) / Math.max(1, pSpan); // 0 กลาง, 1 ขอบ
+                        if (pc > 0.85) {
+                            gridChar[r][c] = "%";  // กรอบไม้ฉลุทอง
+                            gridGlow[r][c] = 2;
+                        } else if ((Math.abs(dc) + r) % 4 === 0) {
+                            gridChar[r][c] = "+";  // ลายกนก
+                            gridGlow[r][c] = 1;
+                        } else {
+                            gridChar[r][c] = "*";
+                            gridGlow[r][c] = 1;
+                        }
+                        gridR[r][c] = 255; gridG[r][c] = 200 + pc * 30; gridB[r][c] = 65 + pc * 35;
                     }
                 }
             }
 
-            // ตัวอาคารอุโบสถ เสาพาไล และซุ้มประตูทอง
+            // ---------- ตัวอาคารอุโบสถ + ฐานเขียง ----------
             const wallHalfW = Math.floor(templeHalfW * 0.85);
             for (let r = wallTop; r < horizonR; r++) {
                 for (let c = leftTempleC - wallHalfW; c <= leftTempleC + wallHalfW; c++) {
                     if (c < 0 || c >= COLS) continue;
-                    gridChar[r][c] = (c % 2 === 0) ? ":" : ".";
-                    gridR[r][c] = 100; gridG[r][c] = 60; gridB[r][c] = 28;
+                    const isColumn = (c === leftTempleC - wallHalfW || c === leftTempleC + wallHalfW);
+                    gridChar[r][c] = isColumn ? "=" : ((c % 2 === 0) ? ":" : ".");
+                    gridR[r][c] = isColumn ? 150 : 100;
+                    gridG[r][c] = isColumn ? 100 : 62;
+                    gridB[r][c] = isColumn ? 48 : 30;
                 }
             }
 
-            // เสาพาไล
+            // เสาพาไลเรืองแสงอุ่น
             const numPillars = 6;
             const pStep = Math.floor((wallHalfW * 2) / (numPillars - 1));
             for (let p = 0; p < numPillars; p++) {
@@ -459,22 +488,43 @@
                 for (let r = wallTop; r < horizonR; r++) {
                     if (pc >= 0 && pc < COLS) {
                         gridChar[r][pc] = "|";
-                        gridR[r][pc] = 230; gridG[r][pc] = 150; gridB[r][pc] = 60;
+                        gridR[r][pc] = 235; gridG[r][pc] = 155; gridB[r][pc] = 65;
                         gridGlow[r][pc] = 1;
                     }
                 }
             }
 
-            // ซุ้มประตูกลางเรืองแสงทอง
+            // ซุ้มประตูกลางเรืองแสงทอง (มีกรอบและวงโค้ง)
             const doorW = 3;
             const doorH = Math.floor(wallH * 0.75);
             for (let r = horizonR - doorH; r < horizonR; r++) {
                 for (let dc = -doorW; dc <= doorW; dc++) {
                     const c = leftTempleC + dc;
                     if (c >= 0 && c < COLS) {
-                        gridChar[r][c] = (r === horizonR - doorH) ? "∩" : "0";
+                        const ad = Math.abs(dc);
+                        if (r === horizonR - doorH && ad <= doorW - 1) {
+                            gridChar[r][c] = "∩";
+                        } else if (r > horizonR - doorH + 1 && ad < doorW) {
+                            gridChar[r][c] = "0";
+                        } else {
+                            gridChar[r][c] = "%"; // กรอบซุ้ม
+                        }
                         gridR[r][c] = 255; gridG[r][c] = 220; gridB[r][c] = 95;
                         gridGlow[r][c] = 2;
+                    }
+                }
+            }
+
+            // บันไดหน้าวัดนำลงสู่ริมน้ำ (grand staircase)
+            for (let i = 0; i < wallH; i++) {
+                const sr = horizonR - 1 - i;
+                const stepSpan = Math.floor(doorW * 0.6) + Math.floor(i * 0.5);
+                for (let dc = -stepSpan; dc <= stepSpan; dc++) {
+                    const c = leftTempleC + dc;
+                    if (c >= 0 && c < COLS) {
+                        gridChar[sr][c] = "=";
+                        gridR[sr][c] = 200 - i * 6; gridG[sr][c] = 150 - i * 5; gridB[sr][c] = 70;
+                        gridGlow[sr][c] = 1;
                     }
                 }
             }
