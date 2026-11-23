@@ -1,4 +1,5 @@
 import math
+
 import os
 import sys
 import time
@@ -312,28 +313,30 @@ def main():
                     r_idx = max(0, min(len(code_chars) - 1, r_idx))
                     char_buffer[y_p, x_p] = code_chars[r_idx]
 
-            # 6. Water Surface & Reflection (ผิวน้ำและแสงสะท้อน)
-            water_horizon = int(H * 0.68)
+            # 6. Water Surface & Reflection (ผิวน้ำสีฟ้าและแสงสะท้อน)
+            water_horizon = int(H * 0.66)
             for yw in range(water_horizon, H):
                 water_depth = (yw - water_horizon) / max(1, H - water_horizon)
                 for xw in range(W):
                     if z_buffer[yw, xw] < -5.0:  # If no krathong point is directly in front
-                        # Water wave ripples
-                        wave = math.sin(xw * 0.35 + yw * 0.8 + t * 3.5) * 0.5 + 0.5
-                        # Reflection of candle and lotus from upper half
-                        mirror_y = max(0, min(H - 1, int(water_horizon - (yw - water_horizon) * 0.75)))
+                        wave = math.sin(xw * 0.32 + yw * 0.75 + t * 3.6) * 0.5 + 0.5
+                        mirror_y = max(0, min(H - 1, int(water_horizon - (yw - water_horizon) * 0.72)))
                         refl_col = color_buffer[mirror_y, xw]
                         refl_mag = np.sum(refl_col)
 
-                        if refl_mag > 0.3:
-                            # Diffuse watery reflection
-                            shimmer = wave * 0.6 + 0.4
-                            color_buffer[yw, xw] = refl_col * (0.45 * shimmer)
-                            char_buffer[yw, xw] = '~' if wave > 0.5 else '='
-                        elif wave > 0.82:
-                            # Faint water surface ripple
-                            color_buffer[yw, xw] = np.array([0.08, 0.22, 0.35])
-                            char_buffer[yw, xw] = '-' if (xw + yw) % 3 == 0 else '.'
+                        # Deep Blue Water Base with Cyan Shimmer
+                        deep_blue = np.array([0.03, 0.22 + 0.15 * (1.0 - water_depth), 0.60 + 0.35 * (1.0 - water_depth)])
+                        if refl_mag > 0.25:
+                            shimmer = wave * 0.65 + 0.35
+                            blended = refl_col * (0.55 * shimmer) + deep_blue * 0.45
+                            color_buffer[yw, xw] = blended
+                            char_buffer[yw, xw] = '~' if wave > 0.5 else '≈'
+                        elif wave > 0.65:
+                            color_buffer[yw, xw] = deep_blue * (0.8 + 0.5 * wave)
+                            char_buffer[yw, xw] = '~' if wave > 0.85 else '-'
+                        elif (xw + yw) % 4 == 0:
+                            color_buffer[yw, xw] = deep_blue * 0.4
+                            char_buffer[yw, xw] = '.'
 
             # 7. Build Output Frame String with ANSI TrueColor
             lines = []
