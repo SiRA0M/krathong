@@ -9,8 +9,120 @@ import numpy as np
 if os.name == 'nt':
     os.system('')
 
+def rot_y(points, angle):
+    c, s = math.cos(angle), math.sin(angle)
+    x = points[:, 0]
+    y = points[:, 1]
+    z = points[:, 2]
+    return np.stack([x * c + z * s, y, -x * s + z * c], axis=-1)
+
+def rot_x(points, angle):
+    c, s = math.cos(angle), math.sin(angle)
+    x = points[:, 0]
+    y = points[:, 1]
+    z = points[:, 2]
+    return np.stack([x, y * c - z * s, y * s + z * c], axis=-1)
+
+class HighDetail3DKrathong:
+    def __init__(self):
+        self.points = []
+        self.colors = []
+        self.materials = []
+        self.build_model()
+
+    def build_petal(self, a, op, ln, wd, y0, r0, mat_type):
+        u_steps = 14
+        v_steps = 8
+        u = np.linspace(0.02, 1.0, u_steps, dtype=np.float32)
+        v_raw = np.linspace(0.0, 1.0, v_steps, dtype=np.float32)
+        U, V = np.meshgrid(u, v_raw, indexing='ij')
+
+        v = V * 2.0 - 1.0
+        sin_val = np.sin(np.pi * np.clip(U, 0.0, 1.0) ** 0.75)
+        w = wd * (np.maximum(0.0, sin_val) ** 0.8) + 0.004
+        ly = U * ln
+        zl = 0.55 * wd * (1.0 - v * v) * (1.0 - 0.45 * U)
+
+        y = ly * math.cos(op) - zl * math.sin(op)
+        z = r0 + ly * math.sin(op) + zl * math.cos(op)
+        x = v * w
+
+        P = np.stack([x, y, z], axis=-1).reshape(-1, 3)
+        U_flat = U.reshape(-1)
+
+        if mat_type == 'leaf':
+            col = np.array([140, 225, 35], dtype=np.float32)
+        elif mat_type == 'petal_out':
+            col = np.array([255, 65, 145], dtype=np.float32)
+        elif mat_type == 'petal_mid':
+            col = np.array([255, 120, 185], dtype=np.float32)
+        elif mat_type == 'petal_in':
+            col = np.array([255, 195, 215], dtype=np.float32)
+        else: # flower
+            col = np.array([255, 195, 45], dtype=np.float32)
+
+        cols = np.tile(col, (len(P), 1))
+        P_rot = rot_y(P, a)
+        P_rot[:, 1] += y0
+
+        self.points.append(P_rot)
+        self.colors.append(cols)
+        self.materials.extend([mat_type] * len(P_rot))
+
+    def build_model(self):
+        # 1. Outer Banana Leaves
+        for i in range(16):
+            self.build_petal((i / 16.0) * math.pi * 2, 1.38, 1.45, 0.48, -0.15, 0.95, 'leaf')
+        # 2. Outer Lotus Petals
+        for i in range(14):
+            self.build_petal(((i + 0.5) / 14.0) * math.pi * 2, 1.10, 1.30, 0.44, -0.08, 0.78, 'petal_out')
+        # 3. Mid Lotus Petals
+        for i in range(12):
+            self.build_petal((i / 12.0) * math.pi * 2, 0.78, 1.15, 0.40, -0.02, 0.58, 'petal_mid')
+        # 4. Inner Lotus Petals
+        for i in range(10):
+            self.build_petal(((i + 0.5) / 10.0) * math.pi * 2, 0.42, 1.00, 0.35, 0.04, 0.38, 'petal_in')
+        # 5. Marigold Ring
+        for i in range(8):
+            self.build_petal((i / 8.0) * math.pi * 2, 0.22, 0.70, 0.28, 0.08, 0.22, 'flower')
+
+        # Base disc
+        radii = np.linspace(0.25, 1.35, 6, dtype=np.float32)
+        angles = np.linspace(0, 2 * math.pi, 16, endpoint=False, dtype=np.float32)
+        R_grid, A_grid = np.meshgrid(radii, angles, indexing='ij')
+        x = (R_grid * np.cos(A_grid)).reshape(-1)
+        z = (R_grid * np.sin(A_grid)).reshape(-1)
+        y = np.full_like(x, -0.14)
+        P_base = np.stack([x, y, z], axis=-1)
+        self.points.append(P_base)
+        self.colors.append(np.tile(np.array([45, 110, 30], dtype=np.float32), (len(P_base), 1)))
+        self.materials.extend(['base'] * len(P_base))
+
+        # Candle
+        h_c = np.linspace(0.05, 1.0, 10, dtype=np.float32)
+        a_c = np.linspace(0, 2 * math.pi, 8, endpoint=False, dtype=np.float32)
+        H_c, A_c = np.meshgrid(h_c, a_c, indexing='ij')
+        xc = (0.10 * np.cos(A_c)).reshape(-1)
+        zc = (0.10 * np.sin(A_c)).reshape(-1)
+        yc = H_c.reshape(-1)
+        P_candle = np.stack([xc, yc, zc], axis=-1)
+        self.points.append(P_candle)
+        self.colors.append(np.tile(np.array([255, 245, 195], dtype=np.float32), (len(P_candle), 1)))
+        self.materials.extend(['candle'] * len(P_candle))
+
+        self.static_pts = np.concatenate(self.points, axis=0)
+        self.static_cols = np.concatenate(self.colors, axis=0)
+
 def main():
-    # Moon shape template
+    model = HighDetail3DKrathong()
+    pts_base = model.static_pts
+    cols_base = model.static_cols
+    mats_base = model.materials
+
+    # Hide cursor
+    sys.stdout.write("\033[?25l")
+    sys.stdout.flush()
+
     moon_lines = [
         "    #@0000000000@..    ",
         "  +0&@000000000&0000+  ",
@@ -24,30 +136,6 @@ def main():
         "     +000000000        "
     ]
 
-    # Pre-generate stars
-    np.random.seed(42)
-    max_stars = 150
-    star_x = np.random.rand(max_stars)
-    star_y = np.random.rand(max_stars) * 0.44
-    star_chars = np.random.choice([".", "+", "*", "·", "'"], size=max_stars)
-    star_speeds = np.random.uniform(1.2, 3.2, size=max_stars)
-
-    # Sky Lanterns (Widescreen multi-point)
-    lantern_data = [
-        (0.17, 0.18, ["7&8#", "#8*:"]),
-        (0.28, 0.28, ["488", "1&85"]),
-        (0.50, 0.12, ["100#", "%&0#*", "9&8"]),
-        (0.63, 0.22, ["84&#", "%&0#*", "7#"]),
-        (0.08, 0.24, ["8#", "*:"]),
-        (0.38, 0.20, ["88", "1&"]),
-        (0.74, 0.30, ["40#", "98"]),
-        (0.88, 0.16, ["80", "*"])
-    ]
-
-    # Hide cursor
-    sys.stdout.write("\033[?25l")
-    sys.stdout.flush()
-
     t0 = time.time()
     frame_idx = 0
 
@@ -60,24 +148,22 @@ def main():
 
             horizon = int(H * 0.46)
             center_x = int(W * 0.50)
-            krathong_y = int(H * 0.53)
 
             char_buf = np.full((H, W), ' ', dtype=object)
             col_buf  = np.zeros((H, W, 3), dtype=np.uint8)
+            z_buf    = np.full((H, W), -99999.0, dtype=np.float32)
 
             # 1. Sky & Stars
-            num_s = int(W * 0.75)
-            for i in range(min(num_s, max_stars)):
-                sc = int(star_x[i] * W)
-                sr = int(star_y[i] * H)
-                if sr < horizon and 0 <= sc < W:
-                    shimmer = math.sin(t * star_speeds[i] + i) * 0.5 + 0.5
-                    if shimmer > 0.3:
-                        char_buf[sr, sc] = star_chars[i]
-                        bright = int(175 + shimmer * 80)
-                        col_buf[sr, sc] = [bright, bright, min(255, bright + 15)]
+            np.random.seed(42)
+            for _ in range(int(W * 0.7)):
+                sc = np.random.randint(0, W)
+                sr = np.random.randint(0, horizon)
+                shimmer = math.sin(t * 2.0 + sc) * 0.5 + 0.5
+                if shimmer > 0.4:
+                    char_buf[sr, sc] = '.' if shimmer < 0.8 else '*'
+                    col_buf[sr, sc] = [200, 200, 255]
 
-            # 2. Detailed Moon (Top Right)
+            # 2. Moon
             moon_c = int(W * 0.78)
             moon_r = max(2, int(H * 0.08))
             for mr, line in enumerate(moon_lines):
@@ -89,36 +175,20 @@ def main():
                         char_buf[r, c] = ch
                         col_buf[r, c] = [255, 250, 230]
 
-            # 3. Sky Lanterns
-            for lx, ly, lines in lantern_data:
-                cur_x = (lx + t * 0.002) % 1.0
-                cur_y = ((ly - t * 0.012) % 0.44 + 0.44) % 0.44
-                l_c = int(cur_x * W)
-                l_r = int(cur_y * H)
-                for l_idx, line in enumerate(lines):
-                    r = l_r + l_idx
-                    if 0 <= r < horizon:
-                        for ch_idx, ch in enumerate(line):
-                            c = l_c + ch_idx - len(line) // 2
-                            if 0 <= c < W:
-                                char_buf[r, c] = ch
-                                col_buf[r, c] = [255, 168, 45]
-
-            # 4. Temple Architecture
-            # Left Grand Royal Temple with illuminated windows
+            # 3. Temple Skyline
+            # Left Temple
             temple_c = int(W * 0.18)
             temple_w = int(W * 0.12)
             for dc in range(-temple_w, temple_w + 1):
                 c = temple_c + dc
                 if 0 <= c < W:
-                    h_prog = math.sqrt(max(0.0, 1.0 - (dc / temple_w) ** 2))
-                    top_r = horizon - int(h_prog * (H * 0.20))
+                    top_r = horizon - int(math.sqrt(max(0.0, 1.0 - (dc / temple_w) ** 2)) * (H * 0.20))
                     for r in range(top_r, horizon):
                         if r == top_r or abs(dc) == temple_w:
                             char_buf[r, c] = '%'
                             col_buf[r, c] = [175, 105, 40]
 
-            # Golden windows
+            # Left Windows
             win_text = "%+  %0  #M  %+  %%  #%  MM"
             for row_off in [3, 1]:
                 wr = horizon - row_off
@@ -129,18 +199,7 @@ def main():
                         char_buf[wr, c] = ch
                         col_buf[wr, c] = [255, 160, 35]
 
-            # Left Stupa
-            stupa_c = int(W * 0.07)
-            for dc in range(-int(W * 0.05), int(W * 0.05) + 1):
-                c = stupa_c + dc
-                if 0 <= c < W:
-                    top_r = horizon - int((1.0 - abs(dc) / (W * 0.05)) ** 1.9 * (H * 0.18))
-                    for r in range(top_r, horizon):
-                        if r == top_r or abs(dc) == int(W * 0.05):
-                            char_buf[r, c] = '#'
-                            col_buf[r, c] = [160, 95, 38]
-
-            # Right Mountain & Chedi
+            # Right Mountain & Spires
             mount_c = int(W * 0.88)
             mount_w = int(W * 0.09)
             for dc in range(-mount_w, mount_w + 1):
@@ -152,9 +211,8 @@ def main():
                             char_buf[r, c] = '#'
                             col_buf[r, c] = [140, 75, 30]
 
-            # Center Wat Arun Spires & Radial Light
-            spire_offsets = [(-6, 0.14), (-3, 0.19), (0, 0.26), (3, 0.20), (6, 0.15)]
-            for off, h_ratio in spire_offsets:
+            # Center Spires
+            for off, h_ratio in [(-6, 0.14), (-3, 0.19), (0, 0.26), (3, 0.20), (6, 0.15)]:
                 sc = center_x + int(off * (W / 120.0))
                 sh = int(H * h_ratio)
                 for i in range(sh):
@@ -163,13 +221,7 @@ def main():
                         char_buf[r, sc] = '1' if i < sh - 2 else '|'
                         col_buf[r, sc] = [255, int(180 + (i / sh) * 65), 50]
 
-            # Horizon line
-            for c in range(W):
-                if char_buf[horizon, c] == ' ':
-                    char_buf[horizon, c] = '-'
-                    col_buf[horizon, c] = [60, 45, 25]
-
-            # 5. Deep Dark Green Water
+            # 4. Water Base
             for r in range(horizon + 1, H):
                 depth = (r - horizon) / max(1, H - horizon)
                 for c in range(W):
@@ -177,109 +229,89 @@ def main():
                     if wave > 0.42:
                         char_buf[r, c] = '~' if (c + r) % 3 == 0 else '-'
                         col_buf[r, c] = [int(7 + 8 * depth), int(30 + 20 * (1 - depth)), int(18 + 12 * (1 - depth))]
-                    elif wave < -0.60:
-                        char_buf[r, c] = '/'
-                        col_buf[r, c] = [5, 20, 12]
 
-            # 6. Detailed Krathong
-            kw = int(W * 0.20)
-            kh = int(H * 0.11)
-            bob = math.sin(t * 2.4) * 0.5
-            kr_y = krathong_y + int(bob)
+            # 5. TRUE 3D PROJECTION OF KRATHONG
+            auto_rot_y = t * 0.35
+            bob_y = math.sin(t * 2.2) * 0.05
+            cam_pitch = 0.44
+            cam_dist = 4.3
+            fov = min(W, H) * 1.5
 
-            # Outer folded leaf points
-            num_leaves = 16
-            for leaf in range(num_leaves):
-                ang = (leaf / num_leaves) * math.pi * 2
-                cos_a, sin_a = math.cos(ang), math.sin(ang)
-                dc = int(cos_a * kw * 1.05)
-                dr = int(sin_a * kh * 1.05)
-                c = center_x + dc
-                r = kr_y + dr
-                if horizon < r < H and 0 <= c < W:
-                    char_buf[r, c] = '^'
-                    col_buf[r, c] = [135, 230, 35]
+            pts = pts_base.copy()
+            pts = rot_y(pts, auto_rot_y)
+            pts[:, 1] += bob_y
+            pts = rot_x(pts, cam_pitch)
+            pts[:, 2] += cam_dist
 
-            # Multi-tiered petals
-            for dy in range(-kh, kh + 1):
-                r = kr_y + dy
-                if r <= horizon or r >= H: continue
-                for dx in range(-kw, kw + 1):
-                    c = center_x + dx
-                    if 0 <= c < W:
-                        norm_d = math.sqrt((dx / kw) ** 2 + (dy / kh) ** 2)
-                        if norm_d <= 1.0:
-                            if dy > kh * 0.30 or norm_d > 0.80:
-                                # Banana leaf green rim
-                                char_buf[r, c] = '1' if (dx + dy) % 2 == 0 else '0'
-                                col_buf[r, c] = [140, 225, 30]
-                            elif norm_d > 0.55:
-                                # Outer lotus pink
-                                char_buf[r, c] = '@' if dx % 2 == 0 else '#'
-                                col_buf[r, c] = [255, int(115 + math.sin(dx * 0.5) * 35), 175]
-                            elif norm_d > 0.32:
-                                # Inner marigold gold
-                                char_buf[r, c] = '8' if dy % 2 == 0 else '%'
-                                col_buf[r, c] = [255, 195, 60]
-                            else:
-                                # Radiant core
-                                char_buf[r, c] = '0' if (dx * dy) % 2 == 0 else '&'
-                                col_buf[r, c] = [255, 252, 220]
+            proj_x = (pts[:, 0] / pts[:, 2]) * fov * 2.0 + center_x
+            proj_y = -(pts[:, 1] / pts[:, 2]) * fov + (H * 0.60)
+            depths = -pts[:, 2]
 
-            # Incense Sticks
-            for off_x in [-2, 0, 2]:
-                for ih in range(int(kh * 1.4)):
-                    r = kr_y - int(kh * 0.3) - ih
-                    c = center_x + off_x
-                    if 0 <= r < H and 0 <= c < W:
-                        char_buf[r, c] = '*' if ih == int(kh * 1.4) - 1 else '|'
-                        col_buf[r, c] = [255, 120, 30] if ih == int(kh * 1.4) - 1 else [170, 85, 50]
+            px = proj_x.astype(np.int32)
+            py = proj_y.astype(np.int32)
 
-            # Candle & Flame
-            candle_h = int(kh * 1.1)
-            for ch in range(candle_h):
-                r = kr_y - int(kh * 0.2) - ch
-                for fdc in [-1, 0, 1]:
-                    c = center_x + fdc
-                    if 0 <= r < H and 0 <= c < W:
-                        char_buf[r, c] = '1'
-                        col_buf[r, c] = [255, 245, 190]
+            valid = (px >= 0) & (px < W) & (py >= 0) & (py < H)
+            valid_idx = np.where(valid)[0]
 
-            flame_h = int(H * 0.15)
-            flicker = math.sin(t * 16.0) * 0.7
-            for fh in range(flame_h + 1):
-                r = kr_y - int(kh * 0.2) - candle_h - fh
-                if r < 0 or r >= H: continue
-                prog = fh / flame_h
-                spread = max(0, int((1.0 - prog) * 2.5))
-                for fdc in range(-spread, spread + 1):
-                    c = center_x + fdc + int(flicker * prog)
-                    if 0 <= c < W:
-                        if prog < 0.25:
-                            char_buf[r, c] = '1' if fdc == 0 else '!'
-                            col_buf[r, c] = [255, 255, 235]
-                        elif prog < 0.65:
-                            char_buf[r, c] = '1' if fdc == 0 else '|'
-                            col_buf[r, c] = [255, 205, 55]
-                        else:
-                            char_buf[r, c] = '*'
-                            col_buf[r, c] = [255, 110, 20]
+            for idx in valid_idx:
+                x_p = px[idx]
+                y_p = py[idx]
+                dep = depths[idx]
+                if dep > z_buf[y_p, x_p]:
+                    z_buf[y_p, x_p] = dep
+                    col = cols_base[idx]
+                    mat = mats_base[idx]
+                    if mat == 'leaf': ch = '1'
+                    elif mat == 'petal_out': ch = '@'
+                    elif mat == 'petal_mid': ch = '%'
+                    elif mat == 'petal_in': ch = '&'
+                    elif mat == 'flower': ch = '8'
+                    elif mat == 'candle': ch = '1'
+                    else: ch = '#'
 
-            # 7. Water Reflection
-            refl_start = kr_y + kh
-            max_refl = int(H * 0.35)
-            for dy in range(max_refl):
-                r = refl_start + dy
-                if r >= H: break
-                prog = dy / float(max_refl)
-                wave_shift = int(math.sin(dy * 0.4 + t * 3.8) * 2.8)
-                spread = int(kw * (1.0 - prog * 0.52))
-                for dx in range(-spread, spread + 1):
-                    c = center_x + dx + wave_shift
-                    if 0 <= c < W and (c + r + frame_idx) % 4 != 0:
-                        decay = (1.0 - prog * 0.85)
-                        char_buf[r, c] = '|' if dx == 0 else '~'
-                        col_buf[r, c] = [int(200 * decay), int(210 * decay), int(60 * decay)]
+                    char_buf[y_p, x_p] = ch
+                    col_buf[y_p, x_p] = [int(col[0]), int(col[1]), int(col[2])]
+
+            # 3D Flame Particles
+            candle_top = 1.05 + bob_y
+            for f in range(24):
+                f_phase = (t * 2.5 + f * 0.12) % 1.0
+                fy = candle_top + f_phase * 0.45
+                fr = 0.06 * (1.0 - f_phase)
+                fa = f * 2.4
+                fx = math.cos(fa) * fr + math.sin(t * 16) * 0.02 * f_phase
+                fz = math.sin(fa) * fr
+
+                # Rot Y
+                cy, sy = math.cos(auto_rot_y), math.sin(auto_rot_y)
+                x1 = fx * cy + fz * sy
+                z1 = -fx * sy + fz * cy
+                y1 = fy
+
+                # Rot X
+                cx, sx = math.cos(cam_pitch), math.sin(cam_pitch)
+                y2 = y1 * cx - z1 * sx
+                z2 = y1 * sx + z1 * cx + cam_dist
+
+                cx_scr = int((x1 / z2) * fov * 2.0 + center_x)
+                cy_scr = int(-(y2 / z2) * fov + (H * 0.60))
+
+                if 0 <= cx_scr < W and 0 <= cy_scr < H:
+                    char_buf[cy_scr, cx_scr] = '1' if f_phase < 0.3 else '*'
+                    col_buf[cy_scr, cx_scr] = [255, 235, 80] if f_phase < 0.4 else [255, 110, 20]
+
+            # Water Reflection
+            water_line = int(H * 0.58)
+            for r in range(water_line, H):
+                dist = r - water_line
+                src_r = max(0, min(H - 1, water_line - int(dist * 0.7)))
+                for c in range(W):
+                    if z_buf[r, c] < -9000.0 and char_buf[src_r, c] != ' ':
+                        orig_c = col_buf[src_r, c]
+                        if np.sum(orig_c) > 100:
+                            decay = 1.0 - (dist / float(H - water_line))
+                            char_buf[r, c] = '~'
+                            col_buf[r, c] = [int(orig_c[0] * 0.5 * decay), int(orig_c[1] * 0.6 * decay + 20), int(orig_c[2] * 0.4 * decay + 15)]
 
             # Output Frame Buffer with TrueColor ANSI
             lines = []
@@ -305,7 +337,7 @@ def main():
             sys.stdout.flush()
 
             frame_idx += 1
-            time.sleep(0.04)
+            time.sleep(0.035)
 
     except KeyboardInterrupt:
         pass
