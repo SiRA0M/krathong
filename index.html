@@ -621,10 +621,14 @@
                 }
             }
 
-            // เขื่อนหินริมน้ำ
+            // แนวขอบฟ้ากลืนกับผิวน้ำ (shore line blends into water)
             for (let c = 0; c < COLS; c++) {
-                gridChar[horizonR][c] = "=";
-                gridR[horizonR][c] = 130; gridG[horizonR][c] = 85; gridB[horizonR][c] = 40;
+                const shimmer = Math.sin(c * 0.30 + t * 1.6) * 0.5 + 0.5;
+                gridChar[horizonR][c] = shimmer > 0.62 ? "~" : (shimmer > 0.35 ? "." : " ");
+                gridR[horizonR][c] = 55 + shimmer * 55;
+                gridG[horizonR][c] = 120 + shimmer * 60;
+                gridB[horizonR][c] = 170 + shimmer * 55;
+                gridGlow[horizonR][c] = 1;
                 if (c % 7 === 0) {
                     gridChar[horizonR - 1][c] = "*";
                     gridR[horizonR - 1][c] = 255; gridG[horizonR - 1][c] = 190; gridB[horizonR - 1][c] = 50;
@@ -633,22 +637,35 @@
             }
 
             // ==========================================
-            // 6. DEEP DARK GREEN WATER (ผิวน้ำสีเขียวเข้ม)
+            // 6. FLOWING BLUE WATER (ผิวน้ำสีฟ้าลื่นไหล)
             // ==========================================
             for (let r = horizonR + 1; r < ROWS; r++) {
                 const depthProg = (r - horizonR) / (ROWS - horizonR);
                 for (let c = 0; c < COLS; c++) {
-                    const wave = Math.sin(c * 0.22 + r * 0.65 + t * 2.8);
-                    if (wave > 0.42) {
-                        gridChar[r][c] = (c + r) % 3 === 0 ? "~" : "-";
-                        gridR[r][c] = 7 + 8 * depthProg;
-                        gridG[r][c] = 30 + 22 * (1.0 - depthProg);
-                        gridB[r][c] = 18 + 14 * (1.0 - depthProg);
-                    } else if (wave < -0.60) {
+                    // Multi-layer flowing waves (คลื่นไหลหลายชั้นต่อเนื่อง)
+                    const wave1 = Math.sin(c * 0.18 + r * 0.30 + t * 2.2);
+                    const wave2 = Math.sin(c * 0.09 - r * 0.16 + t * 1.5 + Math.sin(c * 0.05 + t * 0.7) * 1.4);
+                    const flow = wave1 * 0.6 + wave2 * 0.4;
+
+                    if (flow > 0.35) {
+                        // ยอดคลื่น ไล่จากฟ้าอ่อนใกล้ฝั่งไปฟ้าเข้มลึก
+                        gridChar[r][c] = (c + Math.floor(t * 3)) % 4 === 0 ? "~" : "-";
+                        gridR[r][c] = 90 + 55 * (1.0 - depthProg);
+                        gridG[r][c] = 165 + 45 * (1.0 - depthProg);
+                        gridB[r][c] = 235 + 20 * (1.0 - depthProg);
+                        if (flow > 0.80) gridGlow[r][c] = 1;
+                    } else if (flow < -0.62) {
+                        // ร่องคลื่นสีน้ำเงินเข้ม
                         gridChar[r][c] = "/";
-                        gridR[r][c] = 5;
-                        gridG[r][c] = 20;
-                        gridB[r][c] = 12;
+                        gridR[r][c] = 10 + 10 * (1.0 - depthProg);
+                        gridG[r][c] = 45 + 35 * (1.0 - depthProg);
+                        gridB[r][c] = 110 + 60 * (1.0 - depthProg);
+                    } else {
+                        // พื้นน้ำอ่อน ๆ ต่อเนื่องไหลไปกับคลื่น
+                        gridChar[r][c] = (Math.sin(c * 0.25 - t * 1.9 + r) > 0.7) ? "." : " ";
+                        gridR[r][c] = 35 + 40 * (1.0 - depthProg);
+                        gridG[r][c] = 95 + 60 * (1.0 - depthProg);
+                        gridB[r][c] = 165 + 65 * (1.0 - depthProg);
                     }
                 }
             }
