@@ -220,6 +220,20 @@
                     krathongTypes.push(isTip ? 'incense_tip' : 'incense');
                 }
             }
+
+            // 8b. Wax drips on candle (รอยเทียนหยด กระจายไม่สมมาตร เพื่อให้เห็นการหมุนของแท่งเทียน)
+            for (let d = 0; d < 10; d++) {
+                const dAng = (d / 10) * Math.PI * 2 + 0.35; // ไม่สมมาตร
+                const dTop = (0.55 + 0.75 * ((d * 37) % 10) / 10) * scale;
+                const dLen = (0.18 + 0.22 * ((d * 53) % 7) / 7) * scale;
+                for (let h = dTop; h >= dTop - dLen; h -= 0.045 * scale) {
+                    const dropOut = 0.09 * scale + 0.012 * scale * Math.sin(d * 3);
+                    krathongPoints.push([dropOut * Math.cos(dAng), h, dropOut * Math.sin(dAng)]);
+                    krathongColors.push([255, 250, 225]);
+                    krathongNormals.push([Math.cos(dAng), 0, Math.sin(dAng)]);
+                    krathongTypes.push('candle');
+                }
+            }
         }
         initKrathongModel();
 
@@ -848,20 +862,33 @@
                 }
             }
 
-            // ควันเทียนลอยขึ้นหมุนตามกระทง (rising smoke swirls, rotates with krathong)
-            for (let s = 0; s < 34; s++) {
-                const sPhase = ((t * 0.55 + s / 34) % 1.0);
-                const smokeH = sPhase * 2.3; // สูงขึ้นเหนือเปลวไฟ
-                // เกลียวควัน: รัศมีขยาย + หมุนตามการหมุนของกระทง
-                const swirlA = (s * 1.9) + autoRotY * 1.2 + sPhase * 3.2;
-                const sr0 = (0.05 + sPhase * 0.30) * (1.0 + 0.25 * Math.sin(t * 1.8 + s));
-                const fx = Math.cos(swirlA) * sr0 + Math.sin(t * 1.1 + s * 2) * 0.05 * sPhase;
-                const fz = Math.sin(swirlA) * sr0;
-                const fy = candleTop + smokeH;
+            // ควันธูป-เทียน: พุ่งจากปลายธูป 3 ดอกจริง ๆ (smoke emitted from the actual rotating incense tips)
+            // ตำแหน่งปลายธูปใน model space (ต้องตรงกับ initKrathongModel)
+            const smokeScale = 0.65;
+            const incenseTips = [-0.18, 0.0, 0.18].map((tilt, idx) => {
+                const hTip = 1.80 * smokeScale;
+                return [
+                    (idx - 1) * 0.08 * smokeScale + Math.sin(tilt) * hTip,
+                    hTip,
+                    0.08 * smokeScale + Math.cos(tilt) * 0.02 * smokeScale
+                ];
+            });
+            const smokePerStick = 12; // 34 -> 3 แท่ง x 12 จุด
+            for (let s = 0; s < smokePerStick * 3; s++) {
+                const stick = Math.floor(s / smokePerStick);
+                const sPhase = ((t * 0.55 + (s % smokePerStick) / smokePerStick) % 1.0);
+                // จุดเริ่ม: ปลายธูปดอกนั้น ๆ (model space) หมุนตามกระทงด้วย autoRotY
+                const tip = incenseTips[stick];
+                const driftR = sPhase * 0.30;
+                const driftA = s * 1.9 + sPhase * 3.2;
+                const fx0 = tip[0] + Math.cos(driftA) * driftR + Math.sin(t * 1.1 + s * 2) * 0.05 * sPhase;
+                const fz0 = tip[2] + Math.sin(driftA) * driftR;
+                const fy = tip[1] + bobY + sPhase * 2.1;
 
+                // หมุนตามกระทง (rotation แบบเดียวกับตัวกระทง)
                 const cy = Math.cos(autoRotY), sy = Math.sin(autoRotY);
-                let x1 = fx * cy + fz * sy;
-                let z1 = -fx * sy + fz * cy;
+                let x1 = fx0 * cy + fz0 * sy;
+                let z1 = -fx0 * sy + fz0 * cy;
                 let y1 = fy;
 
                 const cx = Math.cos(camPitch), sx = Math.sin(camPitch);
