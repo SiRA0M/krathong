@@ -22,31 +22,32 @@ def rot_x(points, angle):
     z = points[:, 2]
     return np.stack([x, y * c - z * s, y * s + z * c], axis=-1)
 
-class Compact3DKrathong:
+class RealisticLotus3DKrathong:
     def __init__(self):
         self.points = []
         self.colors = []
+        self.normals = []
         self.materials = []
         self.build_model()
 
     def build_petal(self, a, op, ln, wd, y0, r0, mat_type):
         u_steps = 14
         v_steps = 8
-        scale = 0.55
+        scale = 0.62
         ln *= scale
         wd *= scale
         y0 *= scale
         r0 *= scale
 
-        u = np.linspace(0.02, 1.0, u_steps, dtype=np.float32)
+        u = np.linspace(0.05, 1.0, u_steps, dtype=np.float32)
         v_raw = np.linspace(0.0, 1.0, v_steps, dtype=np.float32)
         U, V = np.meshgrid(u, v_raw, indexing='ij')
 
         v = V * 2.0 - 1.0
-        sin_val = np.sin(np.pi * np.clip(U, 0.0, 1.0) ** 0.75)
+        sin_val = np.sin(np.pi * (np.clip(U, 0.0, 1.0) ** 0.75))
         w = wd * (np.maximum(0.0, sin_val) ** 0.8) + 0.003
         ly = U * ln
-        zl = 0.55 * wd * (1.0 - v * v) * (1.0 - 0.45 * U)
+        zl = 0.60 * wd * (1.0 - v * v) * (1.0 - 0.40 * U)
 
         y = ly * math.cos(op) - zl * math.sin(op)
         z = r0 + ly * math.sin(op) + zl * math.cos(op)
@@ -62,7 +63,7 @@ class Compact3DKrathong:
             col = np.array([255, 120, 185], dtype=np.float32)
         elif mat_type == 'petal_in':
             col = np.array([255, 195, 215], dtype=np.float32)
-        else:
+        else: # flower
             col = np.array([255, 195, 45], dtype=np.float32)
 
         cols = np.tile(col, (len(P), 1))
@@ -75,17 +76,17 @@ class Compact3DKrathong:
 
     def build_model(self):
         for i in range(16):
-            self.build_petal((i / 16.0) * math.pi * 2, 1.38, 1.45, 0.48, -0.15, 0.95, 'leaf')
+            self.build_petal((i / 16.0) * math.pi * 2, 1.35, 1.35, 0.46, -0.12, 0.90, 'leaf')
         for i in range(14):
-            self.build_petal(((i + 0.5) / 14.0) * math.pi * 2, 1.10, 1.30, 0.44, -0.08, 0.78, 'petal_out')
+            self.build_petal(((i + 0.5) / 14.0) * math.pi * 2, 1.05, 1.25, 0.42, -0.05, 0.72, 'petal_out')
         for i in range(12):
-            self.build_petal((i / 12.0) * math.pi * 2, 0.78, 1.15, 0.40, -0.02, 0.58, 'petal_mid')
+            self.build_petal((i / 12.0) * math.pi * 2, 0.72, 1.10, 0.38, 0.02, 0.52, 'petal_mid')
         for i in range(10):
-            self.build_petal(((i + 0.5) / 10.0) * math.pi * 2, 0.42, 1.00, 0.35, 0.04, 0.38, 'petal_in')
+            self.build_petal(((i + 0.5) / 10.0) * math.pi * 2, 0.38, 0.95, 0.32, 0.08, 0.32, 'petal_in')
         for i in range(8):
-            self.build_petal((i / 8.0) * math.pi * 2, 0.22, 0.70, 0.28, 0.08, 0.22, 'flower')
+            self.build_petal((i / 8.0) * math.pi * 2, 0.20, 0.65, 0.26, 0.12, 0.18, 'flower')
 
-        scale = 0.55
+        scale = 0.62
         radii = np.linspace(0.20 * scale, 1.35 * scale, 6, dtype=np.float32)
         angles = np.linspace(0, 2 * math.pi, 16, endpoint=False, dtype=np.float32)
         R_grid, A_grid = np.meshgrid(radii, angles, indexing='ij')
@@ -97,11 +98,11 @@ class Compact3DKrathong:
         self.colors.append(np.tile(np.array([45, 110, 30], dtype=np.float32), (len(P_base), 1)))
         self.materials.extend(['base'] * len(P_base))
 
-        h_c = np.linspace(0.05 * scale, 1.0 * scale, 10, dtype=np.float32)
+        h_c = np.linspace(0.10 * scale, 1.35 * scale, 10, dtype=np.float32)
         a_c = np.linspace(0, 2 * math.pi, 8, endpoint=False, dtype=np.float32)
         H_c, A_c = np.meshgrid(h_c, a_c, indexing='ij')
-        xc = (0.085 * scale * np.cos(A_c)).reshape(-1)
-        zc = (0.085 * scale * np.sin(A_c)).reshape(-1)
+        xc = (0.09 * scale * np.cos(A_c)).reshape(-1)
+        zc = (0.09 * scale * np.sin(A_c)).reshape(-1)
         yc = H_c.reshape(-1)
         P_candle = np.stack([xc, yc, zc], axis=-1)
         self.points.append(P_candle)
@@ -112,26 +113,13 @@ class Compact3DKrathong:
         self.static_cols = np.concatenate(self.colors, axis=0)
 
 def main():
-    model = Compact3DKrathong()
+    model = RealisticLotus3DKrathong()
     pts_base = model.static_pts
     cols_base = model.static_cols
     mats_base = model.materials
 
     sys.stdout.write("\033[?25l")
     sys.stdout.flush()
-
-    moon_lines = [
-        "    #@0000000000@..    ",
-        "  +0&@000000000&0000+  ",
-        " 00000000000000&000000 ",
-        "00000000&0000000000000 ",
-        "0000000000000000000000 ",
-        " 00000000000000000000  ",
-        " &000000000000000000   ",
-        "  +0000000000000000    ",
-        "   +0000000000000      ",
-        "     +000000000        "
-    ]
 
     t0 = time.time()
     frame_idx = 0
@@ -152,7 +140,7 @@ def main():
 
             # 1. Sky & Stars
             np.random.seed(42)
-            for _ in range(int(W * 0.7)):
+            for _ in range(int(W * 0.6)):
                 sc = np.random.randint(0, W)
                 sr = np.random.randint(0, horizon)
                 shimmer = math.sin(t * 2.0 + sc) * 0.5 + 0.5
@@ -160,19 +148,23 @@ def main():
                     char_buf[sr, sc] = '.' if shimmer < 0.8 else '*'
                     col_buf[sr, sc] = [200, 200, 255]
 
-            # 2. Moon (Top Right)
-            moon_c = int(W * 0.80)
-            moon_r = max(2, int(H * 0.10))
-            for mr, line in enumerate(moon_lines):
-                r = moon_r + mr
-                if r >= horizon: break
-                for mc, ch in enumerate(line):
-                    c = moon_c - len(line) // 2 + mc
-                    if ch != ' ' and 0 <= c < W:
-                        char_buf[r, c] = ch
-                        col_buf[r, c] = [255, 250, 230]
+            # 2. Perfectly Round Full Moon (Geometry-based)
+            moon_c = int(W * 0.82)
+            moon_r = int(H * 0.20)
+            moon_rx = int(W * 0.07)
+            moon_ry = int(H * 0.12)
+            for dy in range(-moon_ry, moon_ry + 1):
+                r = moon_r + dy
+                if 0 <= r < horizon:
+                    for dx in range(-moon_rx, moon_rx + 1):
+                        c = moon_c + dx
+                        if 0 <= c < W:
+                            d = math.sqrt((dx / float(moon_rx)) ** 2 + (dy / float(moon_ry)) ** 2)
+                            if d <= 1.0:
+                                char_buf[r, c] = '@' if d < 0.5 else '0'
+                                col_buf[r, c] = [255, 250, 230]
 
-            # 3. SOLID GABLED TEMPLE ROOF (ฝั่งซ้าย: ถมแน่นๆ)
+            # 3. Solid Gabled Temple Roof (Left)
             temple_c = int(W * 0.22)
             temple_hw = int(W * 0.14)
             wall_h = int(H * 0.11)
@@ -180,7 +172,6 @@ def main():
             wall_top = horizon - wall_h
             roof_peak = wall_top - roof_h
 
-            # Solid roof filling
             for r in range(roof_peak, wall_top):
                 prog = (r - roof_peak) / float(roof_h)
                 span = int(prog * temple_hw)
@@ -202,23 +193,6 @@ def main():
             if roof_peak - 1 >= 0 and temple_c < W:
                 char_buf[roof_peak - 1, temple_c] = '^'
                 col_buf[roof_peak - 1, temple_c] = [255, 210, 70]
-            if wall_top - 1 >= 0:
-                if 0 <= temple_c - temple_hw < W:
-                    char_buf[wall_top - 1, temple_c - temple_hw] = '^'
-                    col_buf[wall_top - 1, temple_c - temple_hw] = [255, 190, 60]
-                if 0 <= temple_c + temple_hw < W:
-                    char_buf[wall_top - 1, temple_c + temple_hw] = '^'
-                    col_buf[wall_top - 1, temple_c + temple_hw] = [255, 190, 60]
-
-            # Pediment
-            ped_h = int(roof_h * 0.50)
-            for r in range(wall_top - ped_h, wall_top):
-                p_span = int(((r - (wall_top - ped_h)) / float(ped_h)) * (temple_hw * 0.55))
-                for dc in range(-p_span, p_span + 1):
-                    c = temple_c + dc
-                    if 0 <= c < W:
-                        char_buf[r, c] = '*'
-                        col_buf[r, c] = [255, 195, 60]
 
             # Temple Wall & Pillars
             wall_hw = int(temple_hw * 0.85)
@@ -244,7 +218,7 @@ def main():
                         char_buf[r, c] = '0'
                         col_buf[r, c] = [255, 220, 95]
 
-            # Center Spires & Golden Light
+            # Center Spires
             for off, h_ratio in [(-6, 0.16), (-3, 0.21), (0, 0.28), (3, 0.22), (6, 0.17)]:
                 sc = center_x + int(off * (W / 120.0))
                 sh = int(H * h_ratio)
@@ -259,7 +233,7 @@ def main():
                 char_buf[horizon, c] = '='
                 col_buf[horizon, c] = [130, 85, 40]
 
-            # 4. Deep Water Base
+            # 4. Water Base
             for r in range(horizon + 1, H):
                 depth = (r - horizon) / max(1, H - horizon)
                 for c in range(W):
@@ -268,12 +242,12 @@ def main():
                         char_buf[r, c] = '~' if (c + r) % 3 == 0 else '-'
                         col_buf[r, c] = [int(7 + 8 * depth), int(30 + 20 * (1 - depth)), int(18 + 12 * (1 - depth))]
 
-            # 5. TRUE 3D PROJECTION OF COMPACT KRATHONG
+            # 5. TRUE 3D PROJECTION OF LOTUS KRATHONG
             auto_rot_y = t * 0.35
             bob_y = math.sin(t * 2.2) * 0.04
-            cam_pitch = 0.44
-            cam_dist = 4.6
-            fov = min(W, H) * 1.35
+            cam_pitch = 0.48
+            cam_dist = 4.4
+            fov = min(W, H) * 1.45
 
             pts = pts_base.copy()
             pts = rot_y(pts, auto_rot_y)
@@ -299,11 +273,11 @@ def main():
                     z_buf[y_p, x_p] = dep
                     col = cols_base[idx]
                     mat = mats_base[idx]
-                    if mat == 'leaf': ch = '1'
+                    if mat == 'leaf': ch = '%'
                     elif mat == 'petal_out': ch = '@'
-                    elif mat == 'petal_mid': ch = '%'
-                    elif mat == 'petal_in': ch = '&'
-                    elif mat == 'flower': ch = '8'
+                    elif mat == 'petal_mid': ch = '&'
+                    elif mat == 'petal_in': ch = '8'
+                    elif mat == 'flower': ch = '*'
                     elif mat == 'candle': ch = '1'
                     else: ch = '#'
 
@@ -311,13 +285,13 @@ def main():
                     col_buf[y_p, x_p] = [int(col[0]), int(col[1]), int(col[2])]
 
             # 3D Candle Flame
-            candle_top = 0.75 + bob_y
-            for f in range(20):
+            candle_top = 0.85 + bob_y
+            for f in range(22):
                 f_phase = (t * 2.5 + f * 0.12) % 1.0
-                fy = candle_top + f_phase * 0.40
-                fr = 0.05 * (1.0 - f_phase)
+                fy = candle_top + f_phase * 0.48
+                fr = 0.06 * (1.0 - f_phase)
                 fa = f * 2.4
-                fx = math.cos(fa) * fr + math.sin(t * 16) * 0.018 * f_phase
+                fx = math.cos(fa) * fr + math.sin(t * 16) * 0.02 * f_phase
                 fz = math.sin(fa) * fr
 
                 cy, sy = math.cos(auto_rot_y), math.sin(auto_rot_y)
