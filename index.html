@@ -21,7 +21,7 @@
         }
         canvas {
             display: block;
-            image-rendering: pixelated;
+            image-rendering: auto;
         }
     </style>
 </head>
@@ -32,57 +32,121 @@
         const canvas = document.getElementById('asciiCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Font & Grid Settings
-        const FONT_SIZE = 13;
-        const CHAR_W = 7.8;
-        const CHAR_H = 13.0;
+        // Fixed Grid Resolution for exact artistic pixel alignment
+        // Vertical 9:16 layout (e.g. 64 cols x 96 rows)
+        const COLS = 66;
+        const ROWS = 96;
 
-        let cols = 0;
-        let rows = 0;
+        let charW = 10;
+        let charH = 15;
+        let offsetX = 0;
+        let offsetY = 0;
 
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            cols = Math.floor(canvas.width / CHAR_W);
-            rows = Math.floor(canvas.height / CHAR_H);
+
+            // Fit 66x96 grid into window keeping aspect ratio
+            const scaleH = canvas.height / (ROWS * 1.45);
+            const scaleW = canvas.width / (COLS * 0.95);
+            const scale = Math.min(scaleW, scaleH);
+
+            charW = scale * 0.95;
+            charH = scale * 1.45;
+
+            offsetX = Math.floor((canvas.width - COLS * charW) / 2);
+            offsetY = Math.floor((canvas.height - ROWS * charH) / 2);
         }
         window.addEventListener('resize', resize);
         resize();
 
-        // Character Sets
-        const DENSE_CHARS = ["@", "%", "#", "&", "8", "0", "W", "B", "M", "Q"];
-        const MID_CHARS   = ["o", "*", "=", "+", "a", "e", "s", "1", "0", "x", "z"];
-        const LIGHT_CHARS = ["-", "~", ":", ".", "'", "`", "^", "|", "/", "\\"];
-        const WATER_CHARS = ["~", "-", "=", "_", "≈", "/", "\\", "|"];
-
-        // Random Seed for persistent stars & background details
+        // 1. SKY STARS (ดาวดวงเล็กๆ กระจายเต็มฟ้า)
         const stars = [];
-        for (let i = 0; i < 90; i++) {
+        const starChars = [".", "+", "*", "·", "'", "`"];
+        for (let i = 0; i < 65; i++) {
             stars.push({
-                x: Math.random(),
-                y: Math.random() * 0.42,
-                char: Math.random() > 0.4 ? "+" : (Math.random() > 0.5 ? "*" : (Math.random() > 0.5 ? "·" : "o")),
-                speed: 1.5 + Math.random() * 3.0,
+                c: Math.floor(Math.random() * COLS),
+                r: Math.floor(Math.random() * 42),
+                char: starChars[Math.floor(Math.random() * starChars.length)],
+                speed: 1.5 + Math.random() * 2.5,
                 phase: Math.random() * Math.PI * 2
             });
         }
 
-        // Floating Lanterns (โคมลอยเป็นกลุ่มตัวอักษร)
+        // 2. SKY LANTERNS: 4 ORANGE GLOWING CLUSTERS (กลุ่มตัวอักษรส้มลอยกลางฟ้า 4 จุด)
+        // ซ้ายบน 2 จุด, กลางบน 1 จุด, ขวากลาง 1 จุด
         const lanterns = [
-            { x: 0.28, y: 0.22, text: ["488", "1&85"], speed: 0.012, seed: 1.1 },
-            { x: 0.16, y: 0.15, text: ["7&8#", "#8*:"], speed: 0.015, seed: 2.3 },
-            { x: 0.52, y: 0.10, text: ["100#", "%&0#*", "9&8"], speed: 0.011, seed: 3.7 },
-            { x: 0.63, y: 0.18, text: ["84&#", "%&0#*", "7#"], speed: 0.014, seed: 5.2 }
+            // ซ้ายบน จุดที่ 1 (สูงกว่า)
+            {
+                c: 18, r: 16,
+                lines: ["7&8#", "#8*:"],
+                speed: 0.015,
+                seed: 1.2
+            },
+            // ซ้ายบน จุดที่ 2 (ต่ำกว่า)
+            {
+                c: 29, r: 26,
+                lines: ["488", "1&85"],
+                speed: 0.012,
+                seed: 2.5
+            },
+            // กลางบน 1 จุด
+            {
+                c: 35, r: 11,
+                lines: ["100#", "%&0#*", "9&8"],
+                speed: 0.010,
+                seed: 3.8
+            },
+            // ขวากลาง 1 จุด
+            {
+                c: 43, r: 21,
+                lines: ["84&#", "%&0#*", "7#"],
+                speed: 0.014,
+                seed: 4.9
+            }
         ];
 
-        // Water Floating Petal Clusters (กระจุกตัวอักษรสีเขียว/ฟ้าในน้ำ)
-        const waterSparks = [
-            { x: 0.18, y: 0.54, text: "1111" },
-            { x: 0.11, y: 0.70, text: "111111" },
-            { x: 0.75, y: 0.62, text: "1101" },
-            { x: 0.76, y: 0.74, text: "111111" },
-            { x: 0.88, y: 0.88, text: "&o\n111111" },
-            { x: 0.32, y: 0.91, text: "00" }
+        // 3. MOON SHAPE TEMPLATE (@ กับ 0 หนาแน่น สีขาวนวล)
+        const moonLines = [
+            "    #@0000000@..   ",
+            "  +0&@000000&0000+ ",
+            " 000000000&000000  ",
+            "000000&0000000000  ",
+            "0000000000000000   ",
+            " 000000000000000   ",
+            " &00000000000000   ",
+            "  +000000000000    ",
+            "   +0000000000     ",
+            "     +000000       "
+        ];
+
+        // 4. LEFT GABLED BUILDING & WINDOWS (อาคารหลังคาสูงทรงจั่ว มีแถวหน้าต่างส่องไฟส้ม)
+        const leftWindows = [
+            { text: "%+  %0  #M  %+  %%  #%  MM", r: 42, c: 3 },
+            { text: "%+  %+  %+  %+  %+  %+  ##", r: 44, c: 3 }
+        ];
+
+        // 5. WATER SCATTERED SPARKLES (จุดแสงเขียว เหลือง ส้มเล็กๆ กระจายบนน้ำสีเขียวเข้ม)
+        const waterLights = [];
+        for (let i = 0; i < 40; i++) {
+            waterLights.push({
+                c: Math.floor(Math.random() * COLS),
+                r: 47 + Math.floor(Math.random() * 47),
+                type: Math.random() > 0.4 ? 'green' : (Math.random() > 0.5 ? 'orange' : 'yellow'),
+                char: Math.random() > 0.6 ? "·" : (Math.random() > 0.5 ? "+" : "~"),
+                speed: 1.0 + Math.random() * 3.0,
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+
+        // 6. BOTTOM-LEFT GREEN PATCHES (มุมซ้ายล่างมีกลุ่ม ||| สีเขียวสว่างเป็นหย่อมๆ)
+        const greenPatches = [
+            { c: 8,  r: 66, text: "1111" },
+            { c: 4,  r: 83, text: "111111" },
+            { c: 50, r: 73, text: "1101" },
+            { c: 51, r: 87, text: "111111" },
+            { c: 58, r: 85, text: "&o" },
+            { c: 21, r: 90, text: "00" }
         ];
 
         const startTime = Date.now();
@@ -95,139 +159,103 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Grid Buffers
-            // Each cell: { char, r, g, b, glow }
-            const gridChar = new Array(rows);
-            const gridR = new Array(rows);
-            const gridG = new Array(rows);
-            const gridB = new Array(rows);
-            const gridGlow = new Array(rows);
+            const gridChar = new Array(ROWS);
+            const gridR = new Array(ROWS);
+            const gridG = new Array(ROWS);
+            const gridB = new Array(ROWS);
+            const gridGlow = new Array(ROWS); // 0=None, 1=Soft, 2=Intense
 
-            for (let r = 0; r < rows; r++) {
-                gridChar[r] = new Array(cols).fill(" ");
-                gridR[r] = new Float32Array(cols);
-                gridG[r] = new Float32Array(cols);
-                gridB[r] = new Float32Array(cols);
-                gridGlow[r] = new Uint8Array(cols);
+            for (let r = 0; r < ROWS; r++) {
+                gridChar[r] = new Array(COLS).fill(" ");
+                gridR[r] = new Float32Array(COLS);
+                gridG[r] = new Float32Array(COLS);
+                gridB[r] = new Float32Array(COLS);
+                gridGlow[r] = new Uint8Array(COLS);
             }
 
-            const horizonRow = Math.floor(rows * 0.44);
-            const centerCol = Math.floor(cols * 0.50);
-            const krathongRow = Math.floor(rows * 0.47);
+            const horizonR = 45;
 
-            // 1. SKY & STARS (ฟ้ามืดสนิทและดวงดาวกระพริบ)
+            // ==========================================
+            // 1. SKY & STARS (ฟ้ามืดสนิทและดาวดวงเล็กๆ)
+            // ==========================================
             for (let s of stars) {
-                const sc = Math.floor(s.x * cols);
-                const sr = Math.floor(s.y * rows);
-                if (sr < horizonRow && sc >= 0 && sc < cols) {
+                if (s.r < horizonR) {
                     const shimmer = Math.sin(t * s.speed + s.phase) * 0.5 + 0.5;
                     if (shimmer > 0.3) {
-                        gridChar[sr][sc] = s.char;
-                        gridR[sr][sc] = 200 + shimmer * 55;
-                        gridG[sr][sc] = 220 + shimmer * 35;
-                        gridB[sr][sc] = 255;
-                        if (shimmer > 0.85) gridGlow[sr][sc] = 1;
+                        gridChar[s.r][s.c] = s.char;
+                        const bright = 170 + shimmer * 85;
+                        gridR[s.r][s.c] = bright;
+                        gridG[s.r][s.c] = bright;
+                        gridB[s.r][s.c] = Math.min(255, bright + 10);
+                        if (shimmer > 0.85) gridGlow[s.r][s.c] = 1;
                     }
                 }
             }
 
-            // 2. FULL MOON (พระจันทร์วันเพ็ญมุมขวาบน ทำจากตัวอักษรหนาแน่นและแสงเรือง)
-            const moonC = Math.floor(cols * 0.78);
-            const moonR = Math.floor(rows * 0.15);
-            const moonRadiusCols = Math.floor(cols * 0.10);
-            const moonRadiusRows = Math.floor(rows * 0.075);
+            // ==========================================
+            // 2. FULL MOON (มุมขวาบน @ กับ 0 ขาวนวลเรืองแสง)
+            // ==========================================
+            const moonStartC = 46;
+            const moonStartR = 9;
+            const moonCenterC = moonStartC + 7;
+            const moonCenterR = moonStartR + 5;
 
-            for (let dr = -moonRadiusRows * 2; dr <= moonRadiusRows * 2; dr++) {
-                const r = moonR + dr;
-                if (r < 0 || r >= horizonRow) continue;
-                for (let dc = -moonRadiusCols * 2; dc <= moonRadiusCols * 2; dc++) {
-                    const c = moonC + dc;
-                    if (c < 0 || c >= cols) continue;
-
-                    const normDist = Math.sqrt((dc / moonRadiusCols) ** 2 + (dr / moonRadiusRows) ** 2);
-                    if (normDist <= 1.0) {
-                        // Moon Core Body
-                        const charIdx = (Math.abs(dc * 3 + dr * 7) + Math.floor(t * 2)) % DENSE_CHARS.length;
-                        gridChar[r][c] = DENSE_CHARS[charIdx];
-                        const intensity = 1.0 - normDist * 0.3;
-                        gridR[r][c] = 255 * intensity;
-                        gridG[r][c] = 245 * intensity;
-                        gridB[r][c] = 210 * intensity;
-                        gridGlow[r][c] = 2; // Strong bloom
-                    } else if (normDist <= 1.6) {
-                        // Moon outer aura
-                        const aura = 1.0 - (normDist - 1.0) / 0.6;
-                        if (Math.random() < aura * 0.7) {
-                            gridChar[r][c] = (dc + dr) % 2 === 0 ? "·" : "+";
-                            gridR[r][c] = 220 * aura;
-                            gridG[r][c] = 190 * aura;
-                            gridB[r][c] = 130 * aura;
+            // Moon Outer Glow Halo
+            for (let dr = -6; dr <= 15; dr++) {
+                const r = moonStartR + dr;
+                if (r < 0 || r >= horizonR) continue;
+                for (let dc = -7; dc <= 21; dc++) {
+                    const c = moonStartC + dc;
+                    if (c < 0 || c >= COLS) continue;
+                    const dNorm = Math.sqrt(((dc - 7) / 8.5) ** 2 + ((dr - 5) / 6.5) ** 2);
+                    if (dNorm > 0.95 && dNorm <= 1.7) {
+                        const aura = (1.0 - (dNorm - 0.95) / 0.75);
+                        if (Math.random() < aura * 0.45) {
+                            gridChar[r][c] = (dr + dc) % 2 === 0 ? "·" : "+";
+                            gridR[r][c] = 230 * aura;
+                            gridG[r][c] = 220 * aura;
+                            gridB[r][c] = 190 * aura;
                             gridGlow[r][c] = 1;
                         }
                     }
                 }
             }
 
-            // 3. BACKGROUND SILHOUETTE: PAGODAS & TEMPLES (เจดีย์และยอดปราสาท)
-            // Left Stupa / Dome Pagoda
-            const domeC = Math.floor(cols * 0.20);
-            const domeRCols = Math.floor(cols * 0.14);
-            const domeRRows = Math.floor(rows * 0.15);
-            for (let dc = -domeRCols; dc <= domeRCols; dc++) {
-                const c = domeC + dc;
-                if (c < 0 || c >= cols) continue;
-                const hNorm = Math.sqrt(Math.max(0, 1.0 - (dc / domeRCols) ** 2));
-                const topR = horizonRow - Math.floor(hNorm * domeRRows);
-                for (let r = topR; r <= horizonRow; r++) {
-                    if (r === topR || dc === -domeRCols || dc === domeRCols) {
-                        // Contour Outline
-                        gridChar[r][c] = "%";
-                        gridR[r][c] = 190; gridG[r][c] = 120; gridB[r][c] = 50;
-                        gridGlow[r][c] = 1;
-                    } else if (r === horizonRow - 1 && (c % 2 === 0)) {
-                        gridChar[r][c] = "#";
-                        gridR[r][c] = 160; gridG[r][c] = 100; gridB[r][c] = 40;
+            // Moon Solid @ and 0 Body
+            for (let mr = 0; mr < moonLines.length; mr++) {
+                const line = moonLines[mr];
+                const r = moonStartR + mr;
+                if (r >= horizonR) continue;
+                for (let mc = 0; mc < line.length; mc++) {
+                    const ch = line[mc];
+                    const c = moonStartC + mc;
+                    if (ch !== " " && c >= 0 && c < COLS) {
+                        gridChar[r][c] = ch;
+                        gridR[r][c] = 255;
+                        gridG[r][c] = 250;
+                        gridB[r][c] = 230;
+                        gridGlow[r][c] = 2; // Intense bloom
                     }
                 }
             }
 
-            // Right Temple Spire (ปราสาทและยอดแหลม)
-            const spireC = Math.floor(cols * 0.86);
-            for (let dc = -Math.floor(cols * 0.12); dc <= Math.floor(cols * 0.12); dc++) {
-                const c = spireC + dc;
-                if (c < 0 || c >= cols) continue;
-                const hNorm = Math.max(0, 1.0 - Math.abs(dc) / (cols * 0.12));
-                const topR = horizonRow - Math.floor((hNorm ** 1.6) * (rows * 0.22));
-                for (let r = topR; r <= horizonRow; r++) {
-                    if (r === topR || Math.abs(dc) === Math.floor(cols * 0.12)) {
-                        gridChar[r][c] = "#";
-                        gridR[r][c] = 200; gridG[r][c] = 130; gridB[r][c] = 60;
-                        gridGlow[r][c] = 1;
-                    }
-                }
-            }
-
-            // Horizon line characters
-            for (let c = 0; c < cols; c++) {
-                gridChar[horizonRow][c] = "-";
-                gridR[horizonRow][c] = 80; gridG[horizonRow][c] = 60; gridB[horizonRow][c] = 40;
-            }
-
-            // 4. FLOATING LANTERNS (โคมลอยลอยขึ้นฟ้า)
+            // ==========================================
+            // 3. SKY LANTERNS (4 จุดส้มลอยกลางฟ้า)
+            // ==========================================
             for (let lant of lanterns) {
-                const curY = ((lant.y - t * lant.speed) % 0.42 + 0.42) % 0.42;
-                const lCol = Math.floor(lant.x * cols);
-                const lRow = Math.floor(curY * rows);
-                for (let lineIdx = 0; lineIdx < lant.text.length; lineIdx++) {
-                    const textLine = lant.text[lineIdx];
-                    const r = lRow + lineIdx;
-                    if (r >= 0 && r < horizonRow) {
-                        for (let chIdx = 0; chIdx < textLine.length; chIdx++) {
-                            const c = lCol + chIdx - Math.floor(textLine.length / 2);
-                            if (c >= 0 && c < cols) {
-                                gridChar[r][c] = textLine[chIdx];
+                const curR = Math.floor(((lant.r - t * lant.speed * 25) % (horizonR - 8) + (horizonR - 8)) % (horizonR - 8)) + 3;
+                const flicker = Math.sin(t * 12 + lant.seed) * 0.2 + 0.8;
+                for (let lr = 0; lr < lant.lines.length; lr++) {
+                    const line = lant.lines[lr];
+                    const r = curR + lr;
+                    if (r >= 0 && r < horizonR) {
+                        for (let lc = 0; lc < line.length; lc++) {
+                            const c = lant.c + lc - Math.floor(line.length / 2);
+                            if (c >= 0 && c < COLS) {
+                                gridChar[r][c] = line[lc];
                                 gridR[r][c] = 255;
-                                gridG[r][c] = 180;
-                                gridB[r][c] = 70;
+                                gridG[r][c] = Math.floor(165 * flicker);
+                                gridB[r][c] = 40;
                                 gridGlow[r][c] = 2;
                             }
                         }
@@ -235,234 +263,307 @@
                 }
             }
 
-            // 5. BLUE WATER MATRIX BACKGROUND (ผิวน้ำสีฟ้าเข้มตัวอักษรทั้งครึ่งล่าง)
-            for (let r = horizonRow + 1; r < rows; r++) {
-                const depthNorm = (r - horizonRow) / (rows - horizonRow);
-                for (let c = 0; c < cols; c++) {
-                    const wave = Math.sin(c * 0.25 + r * 0.65 + t * 3.0);
-                    // Blue water character choices
-                    if (wave > 0.45) {
-                        gridChar[r][c] = (c + r) % 3 === 0 ? "~" : "-";
-                        // Deep cyan/blue glow
-                        gridR[r][c] = 10 + 15 * depthNorm;
-                        gridG[r][c] = 45 + 50 * (1.0 - depthNorm);
-                        gridB[r][c] = 85 + 75 * (1.0 - depthNorm);
-                    } else if (wave < -0.6) {
-                        gridChar[r][c] = "/";
-                        gridR[r][c] = 8;
-                        gridG[r][c] = 30;
-                        gridB[r][c] = 55;
+            // ==========================================
+            // 4. HORIZON SILHOUETTES (แนวเส้นขอบฟ้า)
+            // ==========================================
+            // A. ซ้าย: อาคารหลังคาสูงทรงจั่ว (Gabled building)
+            const gableCenterC = 12;
+            const gableW = 10;
+            const gableH = 14;
+            for (let dc = -gableW; dc <= gableW; dc++) {
+                const c = gableCenterC + dc;
+                if (c < 0 || c >= COLS) continue;
+                const roofProg = Math.sqrt(Math.max(0, 1.0 - (dc / gableW) ** 2));
+                const topR = horizonR - Math.floor(roofProg * gableH);
+                for (let r = topR; r <= horizonR; r++) {
+                    if (r === topR || Math.abs(dc) === gableW) {
+                        gridChar[r][c] = "%";
+                        gridR[r][c] = 160; gridG[r][c] = 90; gridB[r][c] = 35;
+                        gridGlow[r][c] = 1;
                     }
                 }
             }
 
-            // 6. KRATHONG (กระทงดอกบัว - กลีบเขียว, บัวชมพู, แกนทอง, เปลวเทียน)
-            const kwCols = Math.floor(cols * 0.28);
-            const khRows = Math.floor(rows * 0.11);
-            const bobY = Math.sin(t * 2.5) * 0.6;
-            const actualKrathongRow = krathongRow + Math.floor(bobY);
+            // แถวหน้าต่างส่องไฟส้มเรียงแถว
+            for (let win of leftWindows) {
+                const r = win.r;
+                for (let i = 0; i < win.text.length; i++) {
+                    const c = win.c + i;
+                    const ch = win.text[i];
+                    if (ch !== " " && c >= 0 && c < COLS) {
+                        gridChar[r][c] = ch;
+                        gridR[r][c] = 255;
+                        gridG[r][c] = 160;
+                        gridB[r][c] = 30;
+                        gridGlow[r][c] = 1;
+                    }
+                }
+            }
 
-            // Base & Lotus Petals Grid
-            for (let dr = -khRows; dr <= khRows; dr++) {
-                const r = actualKrathongRow + dr;
-                if (r < 0 || r >= rows) continue;
-                for (let dc = -kwCols; dc <= kwCols; dc++) {
-                    const c = centerCol + dc;
-                    if (c < 0 || c >= cols) continue;
+            // B. ขวา: ภูเขา/เจดีย์ทรงสามเหลี่ยมสูง ซิลูเอตมืด
+            const mountainTipC = 56;
+            const mountainW = 10;
+            const mountainH = 22;
+            for (let dc = -mountainW; dc <= mountainW; dc++) {
+                const c = mountainTipC + dc;
+                if (c < 0 || c >= COLS) continue;
+                const prog = 1.0 - Math.abs(dc) / mountainW;
+                const topR = horizonR - Math.floor((prog ** 1.8) * mountainH);
+                for (let r = topR; r <= horizonR; r++) {
+                    if (r === topR || Math.abs(dc) === mountainW) {
+                        gridChar[r][c] = "#";
+                        gridR[r][c] = 140; gridG[r][c] = 75; gridB[r][c] = 30;
+                        gridGlow[r][c] = 1;
+                    }
+                }
+            }
 
-                    const nx = dc / kwCols;
-                    const ny = dr / khRows;
-                    const distSq = nx * nx + ny * ny;
+            // แสงไฟเล็กๆ ที่เชิงเขาขวา
+            for (let bc = mountainTipC - 8; bc <= mountainTipC + 8; bc += 3) {
+                if (bc >= 0 && bc < COLS) {
+                    gridChar[horizonR - 1][bc] = "+";
+                    gridR[horizonR - 1][bc] = 230;
+                    gridG[horizonR - 1][bc] = 140;
+                    gridB[horizonR - 1][bc] = 40;
+                    gridGlow[horizonR - 1][bc] = 1;
+                }
+            }
 
-                    if (distSq <= 1.0) {
-                        const dist = Math.sqrt(distSq);
-                        let ch, cr, cg, cb, isGlow = 0;
+            // C. กลาง: ยอดแหลมเรียวหลายยอด และแสงทองสว่างที่สุดในภาพ
+            const centerC = 33;
+            // Spire tips (11, 1, |, !)
+            const spires = [
+                { c: centerC - 2, h: 10, chars: ["1", "1", "|", "!", "!"] },
+                { c: centerC,     h: 15, chars: ["1", "1", "1", "|", "!"] },
+                { c: centerC + 2, h: 11, chars: ["1", "1", "|", "!"] }
+            ];
+            for (let sp of spires) {
+                for (let i = 0; i < sp.h; i++) {
+                    const r = horizonR - sp.h + i;
+                    if (r >= 0 && r < horizonR) {
+                        const ch = sp.chars[i % sp.chars.length];
+                        gridChar[r][sp.c] = ch;
+                        gridR[r][sp.c] = 255;
+                        gridG[r][sp.c] = 180 + (i / sp.h) * 60;
+                        gridB[r][sp.c] = 50;
+                        gridGlow[r][sp.c] = 2;
+                    }
+                }
+            }
 
-                        if (dist > 0.70) {
-                            // Layer 1: Outermost Banana Leaves (สีเขียวตองสดใส 1, 0, &, 8, %)
-                            const charIdx = (Math.abs(dc * 5 + dr * 7) + Math.floor(t * 3)) % MID_CHARS.length;
-                            ch = MID_CHARS[charIdx];
-                            cr = 140 - dist * 40;
-                            cg = 210 - dist * 30;
-                            cb = 40;
-                            isGlow = 1;
-                        } else if (dist > 0.45) {
-                            // Layer 2: Lotus Petals Pink/Salmon (กลีบบัวสีชมพูอ่อนถึงบานเย็น)
-                            const charIdx = (Math.abs(dc * 7 + dr * 11) + Math.floor(t * 2)) % DENSE_CHARS.length;
-                            ch = DENSE_CHARS[charIdx];
-                            cr = 245;
-                            cg = 120 + Math.sin(dc) * 30;
-                            cb = 175;
-                            isGlow = 1;
+            // Intense golden explosion of light at the center base
+            for (let dr = -6; dr <= 2; dr++) {
+                const r = horizonR + dr;
+                for (let dc = -8; dc <= 8; dc++) {
+                    const c = centerC + dc;
+                    if (c >= 0 && c < COLS && r >= 0 && r < ROWS) {
+                        const dist = Math.sqrt((dc / 7) ** 2 + (dr / 5) ** 2);
+                        if (dist <= 1.0) {
+                            const intensity = 1.0 - dist;
+                            gridR[r][c] = Math.min(255, gridR[r][c] + 255 * intensity);
+                            gridG[r][c] = Math.min(255, gridG[r][c] + 220 * intensity);
+                            gridB[r][c] = Math.min(255, gridB[r][c] + 120 * intensity);
+                            gridGlow[r][c] = 2;
+                        }
+                    }
+                }
+            }
+
+            // ==========================================
+            // 5. DEEP DARK GREEN WATER (ผิวน้ำสีเขียวเข้มเกือบดำ)
+            // ==========================================
+            for (let r = horizonR + 1; r < ROWS; r++) {
+                const depthProg = (r - horizonR) / (ROWS - horizonR);
+                for (let c = 0; c < COLS; c++) {
+                    const wave = Math.sin(c * 0.28 + r * 0.70 + t * 2.8);
+                    // Dark green water characters
+                    if (wave > 0.45) {
+                        gridChar[r][c] = (c + r) % 3 === 0 ? "~" : "-";
+                        gridR[r][c] = 6 + 6 * depthProg;
+                        gridG[r][c] = 28 + 18 * (1.0 - depthProg);
+                        gridB[r][c] = 16 + 12 * (1.0 - depthProg);
+                    } else if (wave < -0.55) {
+                        gridChar[r][c] = "/";
+                        gridR[r][c] = 4;
+                        gridG[r][c] = 18;
+                        gridB[r][c] = 12;
+                    }
+                }
+            }
+
+            // ==========================================
+            // 6. MAIN GLOWING ORB / KRATHONG (วัตถุทรงกลมใหญ่เรืองแสงกลางภาพ)
+            // บน: ส้ม-ชมพู-ทอง | ล่าง: ขอบเขียวมะนาว
+            // ==========================================
+            const orbC = centerC;
+            const orbR = 52;
+            const orbRadiusC = 16;
+            const orbRadiusR = 8;
+            const bob = Math.sin(t * 2.4) * 0.5;
+            const curOrbR = orbR + Math.floor(bob);
+
+            for (let dr = -orbRadiusR; dr <= orbRadiusR; dr++) {
+                const r = curOrbR + dr;
+                if (r < horizonR || r >= ROWS) continue;
+                for (let dc = -orbRadiusC; dc <= orbRadiusC; dc++) {
+                    const c = orbC + dc;
+                    if (c < 0 || c >= COLS) continue;
+
+                    const normDist = Math.sqrt((dc / orbRadiusC) ** 2 + (dr / orbRadiusR) ** 2);
+                    if (normDist <= 1.0) {
+                        const dist = normDist;
+                        let ch = "@";
+                        let red = 255, green = 255, blue = 255, glow = 2;
+
+                        if (dr > orbRadiusR * 0.25 || dist > 0.78) {
+                            // ส่วนล่างและขอบนอก: เขียวมะนาวสดใส (Lime Green 1, 0, &, 8, %, o)
+                            const limeChars = ["1", "0", "&", "8", "%", "+", "o", "0"];
+                            ch = limeChars[(Math.abs(dc * 5 + dr * 7) + Math.floor(t * 3)) % limeChars.length];
+                            red = 145 - dist * 40;
+                            green = 225 - dist * 25;
+                            blue = 30;
+                            glow = 1;
+                        } else if (dr < 0 && dist > 0.35) {
+                            // ส่วนบน: ส้ม-ชมพู-ทอง (Orange, Pink & Gold)
+                            const pinkChars = ["@", "%", "#", "&", "8", "0", "W"];
+                            ch = pinkChars[(Math.abs(dc * 7 + dr * 11) + Math.floor(t * 2)) % pinkChars.length];
+                            red = 255;
+                            green = 145 + Math.sin(dc * 0.5) * 35;
+                            blue = 170;
+                            glow = 2;
                         } else {
-                            // Layer 3: Radiant Golden-White Lotus Core (ใจกลางกระทงสว่างจ้า)
-                            const charIdx = (Math.abs(dc * 3 + dr * 5) + Math.floor(t * 4)) % DENSE_CHARS.length;
-                            ch = DENSE_CHARS[charIdx];
-                            cr = 255;
-                            cg = 245;
-                            cb = 190;
-                            isGlow = 2;
+                            // ใจกลางสว่างจ้าที่สุด: ขาวนวล-ทอง (Radiant Golden-White Core)
+                            const coreChars = ["0", "0", "&", "8", "%", "#", "@"];
+                            ch = coreChars[(Math.abs(dc * 3 + dr * 5) + Math.floor(t * 4)) % coreChars.length];
+                            red = 255;
+                            green = 250;
+                            blue = 215;
+                            glow = 2;
                         }
 
                         gridChar[r][c] = ch;
-                        gridR[r][c] = cr;
-                        gridG[r][c] = cg;
-                        gridB[r][c] = cb;
-                        gridGlow[r][c] = isGlow;
+                        gridR[r][c] = red;
+                        gridG[r][c] = green;
+                        gridB[r][c] = blue;
+                        gridGlow[r][c] = glow;
                     }
                 }
             }
 
-            // Candle & Flickering Flame (เทียนและเปลวไฟสั่นไหวแนวตั้ง)
-            const flameHeight = Math.floor(rows * 0.18);
-            const flickerX = Math.sin(t * 16.0) * 0.7;
+            // ==========================================
+            // 7. SOFT REFLECTION BELOW ON WATER (เงาสะท้อนจางๆ ใต้ลงมา)
+            // ==========================================
+            const reflStartR = curOrbR + orbRadiusR;
+            const maxReflR = 26;
 
-            for (let fh = 0; fh <= flameHeight; fh++) {
-                const r = actualKrathongRow - Math.floor(khRows * 0.5) - fh;
-                if (r < 0 || r >= rows) continue;
-                const prog = fh / flameHeight;
-                const spread = Math.max(0, Math.floor((1.0 - prog) * 2.5));
-
-                for (let fdc = -spread; fdc <= spread; fdc++) {
-                    const c = centerCol + fdc + Math.floor(flickerX * prog);
-                    if (c < 0 || c >= cols) continue;
-
-                    let ch = "1";
-                    let cr = 255, cg = 255, cb = 255;
-                    if (prog < 0.3) {
-                        // White-hot core
-                        ch = (fdc === 0) ? "1" : "!";
-                        cr = 255; cg = 255; cb = 230;
-                    } else if (prog < 0.7) {
-                        // Golden Yellow
-                        ch = (fdc === 0) ? "1" : "|";
-                        cr = 255; cg = 200; cb = 60;
-                    } else {
-                        // Orange Flame tip
-                        ch = "*";
-                        cr = 255; cg = 100; cb = 20;
-                    }
-
-                    gridChar[r][c] = ch;
-                    gridR[r][c] = cr;
-                    gridG[r][c] = cg;
-                    gridB[r][c] = cb;
-                    gridGlow[r][c] = 2;
-                }
-            }
-
-            // Sparks rising from the flame
-            for (let sp = 0; sp < 12; sp++) {
-                const sPhase = ((t * 2.0 + sp * 0.28) % 1.0);
-                const sr = actualKrathongRow - flameHeight - Math.floor(sPhase * rows * 0.15);
-                const sc = centerCol + Math.floor(Math.sin(sp * 2.7 + t * 4) * 4);
-                if (sr >= 0 && sr < rows && sc >= 0 && sc < cols) {
-                    gridChar[sr][sc] = sp % 2 === 0 ? "1" : "*";
-                    gridR[sr][sc] = 255;
-                    gridG[sr][sc] = 160 * (1.0 - sPhase);
-                    gridB[sr][sc] = 40;
-                    gridGlow[sr][sc] = 1;
-                }
-            }
-
-            // 7. GIANT WATER REFLECTION (เงาสะท้อนกระทงและเปลวไฟทอดยาวลงผิวน้ำ)
-            const reflStartRow = actualKrathongRow + khRows;
-            const maxReflRows = Math.floor(rows * 0.40);
-
-            for (let dr = 0; dr < maxReflRows; dr++) {
-                const r = reflStartRow + dr;
-                if (r >= rows) break;
-                const reflProg = dr / maxReflRows;
-                const waveShift = Math.floor(Math.sin(dr * 0.4 + t * 4.2) * 3.5);
-
-                const sourceR = Math.max(actualKrathongRow - khRows, actualKrathongRow + Math.floor(khRows * 0.5) - Math.floor(dr * 0.5));
-                const spread = Math.floor(kwCols * (1.0 - reflProg * 0.45));
+            for (let dr = 0; dr < maxReflR; dr++) {
+                const r = reflStartR + dr;
+                if (r >= ROWS) break;
+                const prog = dr / maxReflR;
+                const waveShift = Math.floor(Math.sin(dr * 0.45 + t * 3.8) * 2.5);
+                const srcR = Math.max(curOrbR - orbRadiusR, curOrbR + Math.floor(orbRadiusR * 0.5) - Math.floor(dr * 0.6));
+                const spread = Math.floor(orbRadiusC * (1.0 - prog * 0.55));
 
                 for (let dc = -spread; dc <= spread; dc++) {
-                    const c = centerCol + dc + waveShift;
-                    if (c < 0 || c >= cols) continue;
+                    const c = orbC + dc + waveShift;
+                    if (c < 0 || c >= COLS) continue;
+                    if ((c + r + Math.floor(t * 2)) % 4 === 0) continue;
 
-                    // Wave disruption check
-                    if ((c + r + Math.floor(t * 3)) % 4 === 0) continue;
-
-                    const sc = centerCol + dc;
-                    if (sc >= 0 && sc < cols && gridChar[sourceR][sc] !== " ") {
-                        const origR = gridR[sourceR][sc];
-                        const origG = gridG[sourceR][sc];
-                        const origB = gridB[sourceR][sc];
-
-                        // Blend reflection with deep blue water
-                        const decay = (1.0 - reflProg * 0.75);
+                    const sc = orbC + dc;
+                    if (sc >= 0 && sc < COLS && gridChar[srcR][sc] !== " ") {
+                        const decay = (1.0 - prog * 0.85);
                         gridChar[r][c] = (dc === 0) ? "|" : ((r + c) % 2 === 0 ? "~" : "=");
-                        gridR[r][c] = Math.min(255, origR * 0.65 * decay);
-                        gridG[r][c] = Math.min(255, (origG * 0.70 + 30) * decay);
-                        gridB[r][c] = Math.min(255, (origB * 0.60 + 80) * decay);
-                        if (reflProg < 0.3) gridGlow[r][c] = 1;
+                        // Blend softly with dark green water
+                        gridR[r][c] = Math.min(255, gridR[srcR][sc] * 0.45 * decay + 10);
+                        gridG[r][c] = Math.min(255, gridG[srcR][sc] * 0.55 * decay + 35);
+                        gridB[r][c] = Math.min(255, gridB[srcR][sc] * 0.30 * decay + 15);
+                        if (prog < 0.25) gridGlow[r][c] = 1;
                     }
                 }
             }
 
-            // 8. WATER PETALS / SPARKS (กลุ่มตัวอักษรดอกไม้/พิกเซลลอยน้ำ 111111, &o)
-            for (let wsp of waterSparks) {
-                const wr = Math.floor(wsp.y * rows);
-                const wc = Math.floor(wsp.x * cols);
-                const lines = wsp.text.split("\n");
-                for (let l = 0; l < lines.length; l++) {
-                    const r = wr + l;
-                    if (r >= horizonRow && r < rows) {
-                        for (let k = 0; k < lines[l].length; k++) {
-                            const c = wc + k;
-                            if (c >= 0 && c < cols) {
-                                gridChar[r][c] = lines[l][k];
-                                gridR[r][c] = 90;
-                                gridG[r][c] = 230;
-                                gridB[r][c] = 110;
-                                gridGlow[r][c] = 1;
-                            }
+            // ==========================================
+            // 8. WATER SCATTERED SPARKLES (จุดแสงเขียว เหลือง ส้มเล็กๆ กระจายบนน้ำ)
+            // ==========================================
+            for (let wl of waterLights) {
+                const shimmer = Math.sin(t * wl.speed + wl.phase) * 0.5 + 0.5;
+                if (shimmer > 0.45 && gridChar[wl.r][wl.c] === " ") {
+                    gridChar[wl.r][wl.c] = wl.char;
+                    if (wl.type === 'green') {
+                        gridR[wl.r][wl.c] = 80 * shimmer;
+                        gridG[wl.r][wl.c] = 230 * shimmer;
+                        gridB[wl.r][wl.c] = 90 * shimmer;
+                    } else if (wl.type === 'yellow') {
+                        gridR[wl.r][wl.c] = 240 * shimmer;
+                        gridG[wl.r][wl.c] = 220 * shimmer;
+                        gridB[wl.r][wl.c] = 60 * shimmer;
+                    } else {
+                        gridR[wl.r][wl.c] = 250 * shimmer;
+                        gridG[wl.r][wl.c] = 140 * shimmer;
+                        gridB[wl.r][wl.c] = 30 * shimmer;
+                    }
+                    if (shimmer > 0.8) gridGlow[wl.r][wl.c] = 1;
+                }
+            }
+
+            // ==========================================
+            // 9. BOTTOM-LEFT GREEN PATCHES (กลุ่ม ||| หรือ 111111 สีเขียวสว่าง)
+            // ==========================================
+            for (let gp of greenPatches) {
+                const r = gp.r;
+                if (r >= horizonR && r < ROWS) {
+                    for (let i = 0; i < gp.text.length; i++) {
+                        const c = gp.c + i;
+                        if (c >= 0 && c < COLS) {
+                            gridChar[r][c] = gp.text[i];
+                            gridR[r][c] = 110;
+                            gridG[r][c] = 240;
+                            gridB[r][c] = 85;
+                            gridGlow[r][c] = 1;
                         }
                     }
                 }
             }
 
-            // 9. DRAW PASS: RENDER ALL ASCII CHARACTERS WITH REALISTIC BLOOM
-            ctx.font = `bold ${FONT_SIZE}px 'Consolas', 'Courier New', monospace`;
+            // ==========================================
+            // 10. TWO-PASS CANVAS RENDERING (REALISTIC BLOOM GLOW)
+            // ==========================================
+            ctx.font = `bold ${Math.floor(charH)}px 'Consolas', 'Courier New', monospace`;
             ctx.textBaseline = "top";
 
-            // Pass 1: Glowing / Bloom pass (วาดเงาแสงเรือง)
-            for (let r = 0; r < rows; r++) {
-                const yPos = r * CHAR_H;
-                for (let c = 0; c < cols; c++) {
-                    const glowLevel = gridGlow[r][c];
-                    if (glowLevel > 0) {
+            // Pass 1: Soft Ambient Bloom Glow (แสงเรืองอุ่นรอบตัวอักษร)
+            for (let r = 0; r < ROWS; r++) {
+                const y = offsetY + r * charH;
+                for (let c = 0; c < COLS; c++) {
+                    const glow = gridGlow[r][c];
+                    if (glow > 0) {
                         const ch = gridChar[r][c];
-                        const xPos = c * CHAR_W;
+                        const x = offsetX + c * charW;
                         const red = gridR[r][c];
                         const green = gridG[r][c];
                         const blue = gridB[r][c];
 
                         ctx.shadowColor = `rgb(${red}, ${green}, ${blue})`;
-                        ctx.shadowBlur = glowLevel === 2 ? 14 : 7;
+                        ctx.shadowBlur = (glow === 2) ? 14 : 7;
                         ctx.fillStyle = `rgb(${red}, ${green}, ${blue})`;
-                        ctx.fillText(ch, xPos, yPos);
+                        ctx.fillText(ch, x, y);
                     }
                 }
             }
 
-            // Reset shadow blur for crisp text pass
+            // Pass 2: Sharp Crisp Monospace Characters (ตัวอักษรคมชัดด้านหน้า)
             ctx.shadowBlur = 0;
-
-            // Pass 2: Sharp foreground character pass
-            for (let r = 0; r < rows; r++) {
-                const yPos = r * CHAR_H;
-                for (let c = 0; c < cols; c++) {
+            for (let r = 0; r < ROWS; r++) {
+                const y = offsetY + r * charH;
+                for (let c = 0; c < COLS; c++) {
                     const ch = gridChar[r][c];
                     if (ch !== " ") {
-                        const xPos = c * CHAR_W;
+                        const x = offsetX + c * charW;
                         const red = gridR[r][c];
                         const green = gridG[r][c];
                         const blue = gridB[r][c];
                         ctx.fillStyle = `rgb(${red}, ${green}, ${blue})`;
-                        ctx.fillText(ch, xPos, yPos);
+                        ctx.fillText(ch, x, y);
                     }
                 }
             }

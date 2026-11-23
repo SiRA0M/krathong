@@ -10,18 +10,52 @@ if os.name == 'nt':
     os.system('')
 
 def main():
-    # Character palettes matching the original artwork
-    dense_chars = ["@", "%", "#", "&", "8", "0", "W", "B", "M"]
-    mid_chars   = ["o", "*", "=", "+", "a", "e", "s", "1", "0"]
-    water_chars = ["~", "-", "=", "_", "≈"]
+    # Grid Dimensions (64 cols x 48 rows for standard terminal, or auto fit)
+    COLS = 64
+    ROWS = 48
+
+    # Moon Shape Template
+    moon_lines = [
+        "   #@0000000@..  ",
+        " +0&@000000&0000+",
+        "000000000&000000 ",
+        "000000&000000000 ",
+        "000000000000000  ",
+        " &0000000000000  ",
+        "  +00000000000   ",
+        "    +000000      "
+    ]
 
     # Pre-generate stars
     np.random.seed(42)
-    num_stars = 75
-    star_x = np.random.rand(num_stars)
-    star_y = np.random.rand(num_stars) * 0.42
-    star_chars = np.random.choice(["+", "*", "·", "o"], size=num_stars)
+    num_stars = 45
+    star_x = np.random.randint(0, COLS, size=num_stars)
+    star_y = np.random.randint(0, 21, size=num_stars)
+    star_chars = np.random.choice([".", "+", "*", "·"], size=num_stars)
     star_speeds = np.random.uniform(1.5, 3.5, size=num_stars)
+
+    # 4 Floating Lanterns in Sky (ซ้ายบน 2, กลางบน 1, ขวากลาง 1)
+    lanterns = [
+        (17, 7, ["7&8#", "#8*:"]),
+        (28, 12, ["488", "1&85"]),
+        (33, 4, ["100#", "%&0#*"]),
+        (42, 10, ["84&#", "%&0#*"])
+    ]
+
+    # Left Building Windows
+    left_windows = [
+        (20, 2, "%+ %0 #M %+ %% #% MM"),
+        (21, 2, "%+ %+ %+ %+ %+ %+ ##")
+    ]
+
+    # Water Floating Green Patches
+    green_patches = [
+        (32, 6, "1111"),
+        (40, 3, "111111"),
+        (36, 48, "1101"),
+        (43, 49, "111111"),
+        (42, 56, "&o")
+    ]
 
     # Hide console cursor
     sys.stdout.write("\033[?25l")
@@ -33,208 +67,153 @@ def main():
     try:
         while True:
             t = time.time() - t0
-            term_w, term_h = shutil.get_terminal_size((90, 42))
-            W = max(60, min(130, term_w))
-            H = max(26, min(55, term_h - 1))
-
-            horizon = int(H * 0.44)
+            term_w, term_h = shutil.get_terminal_size((70, 50))
+            W = min(COLS, term_w)
+            H = min(ROWS, term_h - 1)
+            horizon = int(H * 0.45)
             center_x = int(W * 0.50)
-            krathong_y = int(H * 0.47)
 
-            # Character and Color Buffers
             char_buf = np.full((H, W), ' ', dtype=object)
             col_buf  = np.zeros((H, W, 3), dtype=np.uint8)
 
-            # 1. Sky & Twinkling Stars
+            # 1. Sky & Stars
             for i in range(num_stars):
-                sc = int(star_x[i] * W)
-                sr = int(star_y[i] * H)
-                if sr < horizon and 0 <= sc < W:
+                sc = star_x[i]
+                sr = star_y[i]
+                if sr < horizon and sc < W:
                     shimmer = math.sin(t * star_speeds[i] + i) * 0.5 + 0.5
                     if shimmer > 0.35:
                         char_buf[sr, sc] = star_chars[i]
                         bright = int(180 + shimmer * 75)
-                        col_buf[sr, sc] = [bright, bright, 255]
+                        col_buf[sr, sc] = [bright, bright, min(255, bright + 15)]
 
-            # 2. Full Moon (Top Right)
-            moon_x = int(W * 0.78)
-            moon_y = int(H * 0.15)
-            moon_rx = int(W * 0.09)
-            moon_ry = int(H * 0.08)
+            # 2. Moon (Top Right)
+            moon_c = int(W * 0.72)
+            moon_r = 3
+            for mr, line in enumerate(moon_lines):
+                r = moon_r + mr
+                if r >= horizon: break
+                for mc, ch in enumerate(line):
+                    c = moon_c + mc
+                    if ch != ' ' and c < W:
+                        char_buf[r, c] = ch
+                        col_buf[r, c] = [255, 250, 230]
 
-            for dy in range(-moon_ry * 2, moon_ry * 2 + 1):
-                r = moon_y + dy
-                if r < 0 or r >= horizon: continue
-                for dx in range(-moon_rx * 2, moon_rx * 2 + 1):
-                    c = moon_x + dx
-                    if c < 0 or c >= W: continue
-                    dist = math.sqrt((dx / moon_rx) ** 2 + (dy / moon_ry) ** 2)
-                    if dist <= 1.0:
-                        char_buf[r, c] = dense_chars[(abs(dx * 3 + dy * 5) + frame_idx // 3) % len(dense_chars)]
-                        intensity = 1.0 - dist * 0.25
-                        col_buf[r, c] = [int(255 * intensity), int(245 * intensity), int(210 * intensity)]
-                    elif dist <= 1.5 and ((dx + dy) % 2 == 0):
-                        char_buf[r, c] = '·'
-                        col_buf[r, c] = [180, 150, 90]
-
-            # 3. Pagoda / Temple Silhouette on Horizon
-            # Left Stupa Dome
-            dome_x = int(W * 0.20)
-            dome_rx = int(W * 0.14)
-            dome_ry = int(H * 0.15)
-            for dx in range(-dome_rx, dome_rx + 1):
-                c = dome_x + dx
-                if 0 <= c < W:
-                    h_norm = math.sqrt(max(0.0, 1.0 - (dx / dome_rx) ** 2))
-                    top_r = horizon - int(h_norm * dome_ry)
-                    for r in range(top_r, horizon):
-                        if r == top_r or abs(dx) == dome_rx:
-                            char_buf[r, c] = '%'
-                            col_buf[r, c] = [180, 110, 45]
-                        elif r == horizon - 1 and c % 2 == 0:
-                            char_buf[r, c] = '#'
-                            col_buf[r, c] = [150, 90, 35]
-
-            # Right Temple Spires
-            spire_x = int(W * 0.86)
-            spire_w = int(W * 0.11)
-            for dx in range(-spire_w, spire_w + 1):
-                c = spire_x + dx
-                if 0 <= c < W:
-                    h_norm = max(0.0, 1.0 - abs(dx) / spire_w)
-                    top_r = horizon - int((h_norm ** 1.6) * (H * 0.22))
-                    for r in range(top_r, horizon):
-                        if r == top_r or abs(dx) == spire_w:
-                            char_buf[r, c] = '#'
-                            col_buf[r, c] = [190, 120, 50]
-
-            # Horizon line
-            for c in range(W):
-                char_buf[horizon, c] = '-'
-                col_buf[horizon, c] = [70, 50, 35]
-
-            # 4. Floating Lanterns (โคมลอย)
-            lant_configs = [
-                (0.28, 0.22, ["488", "1&85"], 0.012),
-                (0.16, 0.15, ["7&8#", "#8*:"], 0.015),
-                (0.52, 0.10, ["100#", "%&0#*"], 0.011),
-                (0.63, 0.18, ["84&#", "%&0#*"], 0.014)
-            ]
-            for lx, ly, lines, spd in lant_configs:
-                cur_y = ((ly - t * spd) % 0.42 + 0.42) % 0.42
-                l_c = int(lx * W)
-                l_r = int(cur_y * H)
+            # 3. 4 Floating Sky Lanterns
+            for lx, ly, lines in lanterns:
+                l_c = int(lx * (W / COLS))
+                l_r = ly
                 for l_idx, line in enumerate(lines):
                     r = l_r + l_idx
-                    if 0 <= r < horizon:
+                    if r < horizon:
                         for ch_idx, ch in enumerate(line):
-                            c = l_c + ch_idx - len(line) // 2
-                            if 0 <= c < W:
+                            c = l_c + ch_idx
+                            if c < W:
                                 char_buf[r, c] = ch
-                                col_buf[r, c] = [255, 185, 75]
+                                col_buf[r, c] = [255, 165, 40]
 
-            # 5. Blue Water Matrix (ผิวน้ำสีฟ้าทั้งครึ่งล่าง)
+            # 4. Horizon Silhouettes
+            # Left Gabled Roof
+            gable_c = int(11 * (W / COLS))
+            gable_w = 9
+            for dx in range(-gable_w, gable_w + 1):
+                c = gable_c + dx
+                if 0 <= c < W:
+                    top_r = horizon - int(math.sqrt(max(0.0, 1.0 - (dx / gable_w) ** 2)) * 7)
+                    for r in range(top_r, horizon):
+                        if r == top_r or abs(dx) == gable_w:
+                            char_buf[r, c] = '%'
+                            col_buf[r, c] = [160, 90, 35]
+
+            # Left Windows
+            for win_r, win_c, text in left_windows:
+                if win_r < H:
+                    for i, ch in enumerate(text):
+                        c = win_c + i
+                        if ch != ' ' and c < W:
+                            char_buf[win_r, c] = ch
+                            col_buf[win_r, c] = [255, 160, 30]
+
+            # Right Mountain/Pagoda
+            mount_c = int(54 * (W / COLS))
+            mount_w = 9
+            for dx in range(-mount_w, mount_w + 1):
+                c = mount_c + dx
+                if 0 <= c < W:
+                    top_r = horizon - int((1.0 - abs(dx) / mount_w) ** 1.8 * 11)
+                    for r in range(top_r, horizon):
+                        if r == top_r or abs(dx) == mount_w:
+                            char_buf[r, c] = '#'
+                            col_buf[r, c] = [140, 75, 30]
+
+            # Center Spires & Intense Golden Light
+            for sp_c, sp_h in [(center_x - 1, 5), (center_x, 8), (center_x + 1, 6)]:
+                for i in range(sp_h):
+                    r = horizon - sp_h + i
+                    if 0 <= r < horizon and 0 <= sp_c < W:
+                        char_buf[r, sp_c] = '1' if i < sp_h - 2 else '|'
+                        col_buf[r, sp_c] = [255, 210, 60]
+
+            # 5. Deep Dark Green Water Base (ผิวน้ำสีเขียวเข้มเกือบดำ)
             for r in range(horizon + 1, H):
                 depth = (r - horizon) / max(1, H - horizon)
                 for c in range(W):
-                    wave = math.sin(c * 0.25 + r * 0.65 + t * 3.0)
+                    wave = math.sin(c * 0.28 + r * 0.70 + t * 2.8)
                     if wave > 0.45:
                         char_buf[r, c] = '~' if (c + r) % 3 == 0 else '-'
-                        col_buf[r, c] = [int(12 + 10 * depth), int(45 + 50 * (1 - depth)), int(85 + 75 * (1 - depth))]
-                    elif wave < -0.6:
+                        col_buf[r, c] = [int(6 + 6 * depth), int(28 + 16 * (1 - depth)), int(16 + 10 * (1 - depth))]
+                    elif wave < -0.55:
                         char_buf[r, c] = '/'
-                        col_buf[r, c] = [8, 30, 55]
+                        col_buf[r, c] = [4, 18, 12]
 
-            # 6. Center Krathong Body
-            kw = int(W * 0.26)
-            kh = int(H * 0.10)
-            bob = math.sin(t * 2.5) * 0.5
-            kr_y = krathong_y + int(bob)
-
-            for dy in range(-kh, kh + 1):
-                r = kr_y + dy
-                if r < 0 or r >= H: continue
-                for dx in range(-kw, kw + 1):
+            # 6. Center Glowing Orb (Upper Orange/Pink/Gold, Lower Lime Green)
+            orb_r = horizon + 3
+            orb_rx = int(14 * (W / COLS))
+            orb_ry = 5
+            for dy in range(-orb_ry, orb_ry + 1):
+                r = orb_r + dy
+                if r < horizon or r >= H: continue
+                for dx in range(-orb_rx, orb_rx + 1):
                     c = center_x + dx
-                    if c < 0 or c >= W: continue
-                    dist_sq = (dx / kw) ** 2 + (dy / kh) ** 2
-                    if dist_sq <= 1.0:
-                        dist = math.sqrt(dist_sq)
-                        if dist > 0.68:
-                            # Green Banana leaves (กลีบตองสีเขียว 1, 0, &, 8, %)
-                            char_buf[r, c] = mid_chars[(abs(dx * 5 + dy * 7) + frame_idx // 2) % len(mid_chars)]
-                            col_buf[r, c] = [int(135 - dist * 35), int(210 - dist * 25), 40]
-                        elif dist > 0.45:
-                            # Pink Lotus Petals (กลีบบัวสีชมพู)
-                            char_buf[r, c] = dense_chars[(abs(dx * 7 + dy * 11) + frame_idx // 3) % len(dense_chars)]
-                            col_buf[r, c] = [245, int(120 + math.sin(dx) * 30), 175]
-                        else:
-                            # Radiant Core (แกนดอกบัวสีทองสว่าง)
-                            char_buf[r, c] = dense_chars[(abs(dx * 3 + dy * 5) + frame_idx // 4) % len(dense_chars)]
-                            col_buf[r, c] = [255, 245, 190]
-
-            # Candle Flame (เปลวเทียนตรงกลางสั่นไหว)
-            flame_h = int(H * 0.17)
-            flicker = math.sin(t * 16.0) * 0.6
-            for fh in range(flame_h + 1):
-                r = kr_y - int(kh * 0.5) - fh
-                if r < 0 or r >= H: continue
-                prog = fh / flame_h
-                spread = max(0, int((1.0 - prog) * 2.2))
-                for fdx in range(-spread, spread + 1):
-                    c = center_x + fdx + int(flicker * prog)
                     if 0 <= c < W:
-                        if prog < 0.3:
-                            char_buf[r, c] = '1' if fdx == 0 else '!'
-                            col_buf[r, c] = [255, 255, 230]
-                        elif prog < 0.7:
-                            char_buf[r, c] = '1' if fdx == 0 else '|'
-                            col_buf[r, c] = [255, 200, 60]
-                        else:
-                            char_buf[r, c] = '*'
-                            col_buf[r, c] = [255, 100, 20]
+                        dist = math.sqrt((dx / orb_rx) ** 2 + (dy / orb_ry) ** 2)
+                        if dist <= 1.0:
+                            if dy > 1 or dist > 0.75:
+                                # Lower Lime Green rim
+                                char_buf[r, c] = '1' if (dx + dy) % 2 == 0 else '0'
+                                col_buf[r, c] = [120, 220, 30]
+                            elif dy < 0 and dist > 0.35:
+                                # Upper Pink/Orange/Gold
+                                char_buf[r, c] = '@' if dx % 2 == 0 else '#'
+                                col_buf[r, c] = [255, 140, 165]
+                            else:
+                                # Radiant White-Gold Core
+                                char_buf[r, c] = '0' if (dx * dy) % 2 == 0 else '&'
+                                col_buf[r, c] = [255, 250, 215]
 
-            # 7. Giant Water Reflection (เงาสะท้อนทอดยาวลงผิวน้ำ)
-            refl_start = kr_y + kh
-            max_refl = int(H * 0.40)
-            for dy in range(max_refl):
+            # Soft Vertical Reflection Below
+            refl_start = orb_r + orb_ry
+            for dy in range(12):
                 r = refl_start + dy
                 if r >= H: break
-                refl_prog = dy / max_refl
-                wave_shift = int(math.sin(dy * 0.4 + t * 4.2) * 3.2)
-                src_r = max(kr_y - kh, kr_y + int(kh * 0.5) - int(dy * 0.5))
-                spread = int(kw * (1.0 - refl_prog * 0.45))
-
+                prog = dy / 12.0
+                wave_shift = int(math.sin(dy * 0.5 + t * 3.5) * 1.8)
+                spread = int(orb_rx * (1.0 - prog * 0.5))
                 for dx in range(-spread, spread + 1):
                     c = center_x + dx + wave_shift
-                    if c < 0 or c >= W: continue
-                    if (c + r + frame_idx) % 4 == 0: continue
-                    sc = center_x + dx
-                    if 0 <= sc < W and char_buf[src_r, sc] != ' ':
-                        orig_c = col_buf[src_r, sc]
-                        decay = (1.0 - refl_prog * 0.75)
-                        char_buf[r, c] = '|' if dx == 0 else ('~' if (r + c) % 2 == 0 else '=')
-                        col_buf[r, c] = [
-                            int(min(255, orig_c[0] * 0.65 * decay)),
-                            int(min(255, (orig_c[1] * 0.70 + 30) * decay)),
-                            int(min(255, (orig_c[2] * 0.60 + 80) * decay))
-                        ]
+                    if 0 <= c < W and (c + r + frame_idx) % 3 != 0:
+                        decay = (1.0 - prog * 0.8)
+                        char_buf[r, c] = '|' if dx == 0 else '~'
+                        col_buf[r, c] = [int(180 * decay), int(190 * decay), int(50 * decay)]
 
-            # 8. Floating Water Sparkles (กลุ่มดอกไม้/พิกเซลลอยน้ำ 111111, &o)
-            sparkles = [
-                (0.18, 0.54, "1111"), (0.11, 0.70, "111111"),
-                (0.75, 0.62, "1101"), (0.76, 0.74, "111111"),
-                (0.88, 0.88, "&o"), (0.32, 0.91, "00")
-            ]
-            for sx, sy, stxt in sparkles:
-                sr = int(sy * H)
-                sc = int(sx * W)
-                if sr < H:
-                    for k, ch in enumerate(stxt):
-                        c = sc + k
-                        if 0 <= c < W:
-                            char_buf[sr, c] = ch
-                            col_buf[sr, c] = [90, 230, 110]
+            # Bottom-left Green Patches
+            for pr, pc, ptxt in green_patches:
+                if pr < H:
+                    for k, ch in enumerate(ptxt):
+                        c = pc + k
+                        if c < W:
+                            char_buf[pr, c] = ch
+                            col_buf[pr, c] = [110, 240, 85]
 
             # Output Frame Buffer with TrueColor ANSI
             lines = []
