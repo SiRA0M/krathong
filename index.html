@@ -3,435 +3,466 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loy Krathong 3D ASCII - เทศกาลลอยกระทง</title>
+    <title>Loy Krathong Pure ASCII Art</title>
     <style>
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            user-select: none;
-        }
-        body {
-            background-color: #030712;
-            color: #e2e8f0;
-            font-family: 'Consolas', 'Courier New', monospace;
             overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            width: 100vw;
+            background-color: #000000;
         }
-        #canvas-wrapper {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
+        body, html {
+            width: 100%;
+            height: 100%;
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
         }
         canvas {
             display: block;
-            width: 100%;
-            height: 100%;
-        }
-        .ui-overlay {
-            position: absolute;
-            top: 24px;
-            left: 28px;
-            pointer-events: none;
-            z-index: 10;
-        }
-        .ui-overlay h1 {
-            font-size: 24px;
-            font-weight: 700;
-            color: #ffd166;
-            text-shadow: 0 0 15px rgba(255, 209, 102, 0.6);
-            letter-spacing: 2px;
-        }
-        .ui-overlay p {
-            font-size: 13px;
-            color: #7dd3fc;
-            margin-top: 4px;
-            text-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
-        }
-        .hud-controls {
-            position: absolute;
-            bottom: 24px;
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            background: rgba(10, 20, 40, 0.75);
-            backdrop-filter: blur(8px);
-            padding: 10px 20px;
-            border-radius: 30px;
-            border: 1px solid rgba(56, 189, 248, 0.25);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-            font-size: 13px;
-            color: #94a3b8;
-            z-index: 10;
-        }
-        .hud-controls span {
-            color: #38bdf8;
-            font-weight: bold;
-        }
-        .btn-toggle {
-            background: #0284c7;
-            color: #fff;
-            border: none;
-            border-radius: 16px;
-            padding: 6px 14px;
-            cursor: pointer;
-            font-family: inherit;
-            font-size: 12px;
-            font-weight: bold;
-            transition: all 0.2s;
-        }
-        .btn-toggle:hover {
-            background: #0ea5e9;
-            box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+            image-rendering: pixelated;
         }
     </style>
 </head>
 <body>
-    <div id="canvas-wrapper">
-        <div class="ui-overlay">
-            <h1>🪷 LOY KRATHONG 3D</h1>
-            <p>Mathematical Particle &amp; ASCII Digital Art</p>
-        </div>
-        
-        <canvas id="viewCanvas"></canvas>
-
-        <div class="hud-controls">
-            <div>🖱️ <span>คลิกลาก:</span> หมุนมุมมอง 360°</div>
-            <div>|</div>
-            <div>📜 <span>Scroll:</span> ซูมเข้า-ออก</div>
-            <div>|</div>
-            <button id="toggleRotBtn" class="btn-toggle">หยุดหมุนอัตโนมัติ</button>
-        </div>
-    </div>
+    <canvas id="asciiCanvas"></canvas>
 
     <script>
-        const canvas = document.getElementById('viewCanvas');
+        const canvas = document.getElementById('asciiCanvas');
         const ctx = canvas.getContext('2d');
+
+        // Font & Grid Settings
+        const FONT_SIZE = 13;
+        const CHAR_W = 7.8;
+        const CHAR_H = 13.0;
+
+        let cols = 0;
+        let rows = 0;
 
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            cols = Math.floor(canvas.width / CHAR_W);
+            rows = Math.floor(canvas.height / CHAR_H);
         }
         window.addEventListener('resize', resize);
         resize();
 
-        // Mathematical Model Generation
-        const points = [];
-        const colors = [];
-        const codeChars = "01*#+~:=·";
+        // Character Sets
+        const DENSE_CHARS = ["@", "%", "#", "&", "8", "0", "W", "B", "M", "Q"];
+        const MID_CHARS   = ["o", "*", "=", "+", "a", "e", "s", "1", "0", "x", "z"];
+        const LIGHT_CHARS = ["-", "~", ":", ".", "'", "`", "^", "|", "/", "\\"];
+        const WATER_CHARS = ["~", "-", "=", "_", "≈", "/", "\\", "|"];
 
-        function mix(c1, c2, t) {
-            t = Math.max(0, Math.min(1, t));
-            return [
-                c1[0] * (1 - t) + c2[0] * t,
-                c1[1] * (1 - t) + c2[1] * t,
-                c1[2] * (1 - t) + c2[2] * t
-            ];
-        }
-
-        function buildPetal(a, op, ln, wd, y0, r0, isLeaf) {
-            const uSteps = 16;
-            const vSteps = 10;
-            for (let i = 0; i < uSteps; i++) {
-                const u = 0.02 + (i / (uSteps - 1)) * 0.98;
-                for (let j = 0; j < vSteps; j++) {
-                    const v = (j / (vSteps - 1)) * 2.0 - 1.0;
-                    const sinVal = Math.sin(Math.PI * Math.pow(Math.min(1, Math.max(0, u)), 0.75));
-                    const w = wd * Math.pow(Math.max(0, sinVal), 0.8) + 0.004;
-                    const ly = u * ln;
-                    const zl = 0.5 * wd * (1.0 - v * v) * (1.0 - 0.5 * u);
-
-                    const y = ly * Math.cos(op) - zl * Math.sin(op);
-                    const z = r0 + ly * Math.sin(op) + zl * Math.cos(op);
-                    const x = v * w;
-
-                    // Rotate around Y axis by angle 'a'
-                    const c = Math.cos(a), s = Math.sin(a);
-                    const xr = x * c + z * s;
-                    const zr = -x * s + z * c;
-                    const yr = y + y0;
-
-                    let col;
-                    if (isLeaf) {
-                        col = mix([35, 115, 30], [140, 195, 45], u);
-                        const edge = 0.3 * Math.pow(Math.abs(v), 4);
-                        col = mix(col, [180, 220, 80], edge);
-                    } else {
-                        // Lotus petal: soft pink gradient
-                        col = mix([255, 225, 240], [255, 95, 185], Math.pow(u, 1.3));
-                    }
-
-                    points.push([xr, yr, zr]);
-                    colors.push(col);
-                }
-            }
-        }
-
-        // Base disc (Banana trunk)
-        for (let r = 0.2; r <= 1.3; r += 0.14) {
-            for (let a = 0; a < Math.PI * 2; a += Math.PI / 14) {
-                const x = r * Math.cos(a);
-                const z = r * Math.sin(a);
-                points.push([x, -0.10, z]);
-                colors.push([45, 100, 32]);
-                points.push([x, -0.22, z]);
-                colors.push([32, 75, 22]);
-            }
-        }
-
-        // Petal Layers
-        for (let i = 0; i < 14; i++) buildPetal((i / 14) * Math.PI * 2, 1.35, 1.35, 0.45, -0.12, 0.85, true);
-        for (let i = 0; i < 12; i++) buildPetal(((i + 0.5) / 12) * Math.PI * 2, 1.05, 1.20, 0.42, -0.05, 0.68, false);
-        for (let i = 0; i < 10; i++) buildPetal((i / 10) * Math.PI * 2, 0.70, 1.05, 0.38, 0.02, 0.48, false);
-        for (let i = 0; i < 8; i++) buildPetal(((i + 0.5) / 8) * Math.PI * 2, 0.35, 0.90, 0.32, 0.06, 0.28, false);
-
-        // Candle
-        for (let h = 0; h <= 0.95; h += 0.08) {
-            for (let a = 0; a < Math.PI * 2; a += Math.PI / 5) {
-                points.push([0.09 * Math.cos(a), h, 0.09 * Math.sin(a)]);
-                colors.push([255, 245, 190]);
-            }
-        }
-
-        // Stars generator
+        // Random Seed for persistent stars & background details
         const stars = [];
-        for (let s = 0; s < 120; s++) {
+        for (let i = 0; i < 90; i++) {
             stars.push({
                 x: Math.random(),
-                y: Math.random() * 0.55,
-                size: Math.random() * 1.5 + 0.5,
-                blinkSpeed: Math.random() * 3 + 1,
-                char: Math.random() > 0.4 ? '·' : '*'
+                y: Math.random() * 0.42,
+                char: Math.random() > 0.4 ? "+" : (Math.random() > 0.5 ? "*" : (Math.random() > 0.5 ? "·" : "o")),
+                speed: 1.5 + Math.random() * 3.0,
+                phase: Math.random() * Math.PI * 2
             });
         }
 
-        // Camera & User Controls
-        let userRotX = 0.45;
-        let userRotY = 0;
-        let autoRotate = true;
-        let zoom = 1.0;
-        let isDragging = false;
-        let lastMouseX = 0, lastMouseY = 0;
+        // Floating Lanterns (โคมลอยเป็นกลุ่มตัวอักษร)
+        const lanterns = [
+            { x: 0.28, y: 0.22, text: ["488", "1&85"], speed: 0.012, seed: 1.1 },
+            { x: 0.16, y: 0.15, text: ["7&8#", "#8*:"], speed: 0.015, seed: 2.3 },
+            { x: 0.52, y: 0.10, text: ["100#", "%&0#*", "9&8"], speed: 0.011, seed: 3.7 },
+            { x: 0.63, y: 0.18, text: ["84&#", "%&0#*", "7#"], speed: 0.014, seed: 5.2 }
+        ];
 
-        document.getElementById('toggleRotBtn').addEventListener('click', () => {
-            autoRotate = !autoRotate;
-            document.getElementById('toggleRotBtn').innerText = autoRotate ? "หยุดหมุนอัตโนมัติ" : "เริ่มหมุนอัตโนมัติ";
-        });
-
-        window.addEventListener('mousedown', (e) => {
-            if (e.target.tagName === 'BUTTON') return;
-            isDragging = true;
-            lastMouseX = e.clientX;
-            lastMouseY = e.clientY;
-        });
-        window.addEventListener('mouseup', () => isDragging = false);
-        window.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                userRotY += (e.clientX - lastMouseX) * 0.007;
-                userRotX += (e.clientY - lastMouseY) * 0.007;
-                userRotX = Math.max(0.12, Math.min(1.25, userRotX));
-                lastMouseX = e.clientX;
-                lastMouseY = e.clientY;
-            }
-        });
-        window.addEventListener('wheel', (e) => {
-            zoom *= e.deltaY > 0 ? 0.92 : 1.08;
-            zoom = Math.max(0.5, Math.min(2.2, zoom));
-        });
+        // Water Floating Petal Clusters (กระจุกตัวอักษรสีเขียว/ฟ้าในน้ำ)
+        const waterSparks = [
+            { x: 0.18, y: 0.54, text: "1111" },
+            { x: 0.11, y: 0.70, text: "111111" },
+            { x: 0.75, y: 0.62, text: "1101" },
+            { x: 0.76, y: 0.74, text: "111111" },
+            { x: 0.88, y: 0.88, text: "&o\n111111" },
+            { x: 0.32, y: 0.91, text: "00" }
+        ];
 
         const startTime = Date.now();
 
         function render() {
             const t = (Date.now() - startTime) * 0.001;
-            const w = canvas.width;
-            const h = canvas.height;
-            const waterLine = h * 0.62;
 
-            // 1. NIGHT SKY BACKGROUND (ท้องฟ้ากลางคืนไล่เฉดสีลึก)
-            const skyGrad = ctx.createLinearGradient(0, 0, 0, waterLine);
-            skyGrad.addColorStop(0, '#030712');      // ยอดฟ้ามืดสนิท
-            skyGrad.addColorStop(0.5, '#07162c');    // กึ่งกลางฟ้าสีกรมท่า
-            skyGrad.addColorStop(1, '#0e2b4f');      // ขอบฟ้าเหนือผิวน้ำ
-            ctx.fillStyle = skyGrad;
-            ctx.fillRect(0, 0, w, waterLine);
+            // Clear black screen
+            ctx.fillStyle = "#000000";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 2. BLUE WATER BACKGROUND (ผิวน้ำสีฟ้าเปล่งประกาย)
-            const waterGrad = ctx.createLinearGradient(0, waterLine, 0, h);
-            waterGrad.addColorStop(0, '#0a3663');     // ผิวน้ำชั้นบนสีฟ้าครามลึก
-            waterGrad.addColorStop(0.35, '#074780');  // ผิวน้ำสะท้อนแสงสีฟ้าสด
-            waterGrad.addColorStop(0.7, '#04284d');   // สีฟ้าเข้ม
-            waterGrad.addColorStop(1, '#02152b');     // ด้านล่างสุด
-            ctx.fillStyle = waterGrad;
-            ctx.fillRect(0, waterLine, w, h - waterLine);
+            // Grid Buffers
+            // Each cell: { char, r, g, b, glow }
+            const gridChar = new Array(rows);
+            const gridR = new Array(rows);
+            const gridG = new Array(rows);
+            const gridB = new Array(rows);
+            const gridGlow = new Array(rows);
 
-            // Water Horizon Glow line (เส้นขอบน้ำเรืองแสง)
-            ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(0, waterLine);
-            ctx.lineTo(w, waterLine);
-            ctx.stroke();
+            for (let r = 0; r < rows; r++) {
+                gridChar[r] = new Array(cols).fill(" ");
+                gridR[r] = new Float32Array(cols);
+                gridG[r] = new Float32Array(cols);
+                gridB[r] = new Float32Array(cols);
+                gridGlow[r] = new Uint8Array(cols);
+            }
 
-            // 3. BACKGROUND STARS (ดวงดาวกระพริบบนท้องฟ้า)
-            ctx.font = '10px monospace';
+            const horizonRow = Math.floor(rows * 0.44);
+            const centerCol = Math.floor(cols * 0.50);
+            const krathongRow = Math.floor(rows * 0.47);
+
+            // 1. SKY & STARS (ฟ้ามืดสนิทและดวงดาวกระพริบ)
             for (let s of stars) {
-                const alpha = (Math.sin(t * s.blinkSpeed) * 0.4 + 0.6);
-                ctx.fillStyle = `rgba(224, 242, 254, ${alpha})`;
-                ctx.fillText(s.char, s.x * w, s.y * waterLine);
-            }
-
-            // 4. FULL MOON (พระจันทร์วันเพ็ญสีทองสว่างเรืองแสง)
-            const moonX = w * 0.80;
-            const moonY = h * 0.20;
-            const moonR = Math.min(w, h) * 0.09;
-
-            // Halo glow
-            const moonAura = ctx.createRadialGradient(moonX, moonY, moonR * 0.3, moonX, moonY, moonR * 2.8);
-            moonAura.addColorStop(0, 'rgba(254, 243, 199, 0.85)');
-            moonAura.addColorStop(0.35, 'rgba(253, 224, 71, 0.35)');
-            moonAura.addColorStop(0.7, 'rgba(56, 189, 248, 0.15)'); // แสงจันทร์กระทบหมอกสีฟ้า
-            moonAura.addColorStop(1, 'rgba(56, 189, 248, 0)');
-            ctx.fillStyle = moonAura;
-            ctx.beginPath();
-            ctx.arc(moonX, moonY, moonR * 2.8, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Moon ASCII Matrix Body
-            ctx.font = '11px monospace';
-            ctx.fillStyle = '#fef08a';
-            for (let my = -moonR; my <= moonR; my += 14) {
-                for (let mx = -moonR; mx <= moonR; mx += 10) {
-                    if (mx * mx + my * my <= moonR * moonR) {
-                        const char = codeChars[(Math.floor((mx + my + t * 4)) % codeChars.length + codeChars.length) % codeChars.length];
-                        ctx.fillText(char, moonX + mx, moonY + my);
+                const sc = Math.floor(s.x * cols);
+                const sr = Math.floor(s.y * rows);
+                if (sr < horizonRow && sc >= 0 && sc < cols) {
+                    const shimmer = Math.sin(t * s.speed + s.phase) * 0.5 + 0.5;
+                    if (shimmer > 0.3) {
+                        gridChar[sr][sc] = s.char;
+                        gridR[sr][sc] = 200 + shimmer * 55;
+                        gridG[sr][sc] = 220 + shimmer * 35;
+                        gridB[sr][sc] = 255;
+                        if (shimmer > 0.85) gridGlow[sr][sc] = 1;
                     }
                 }
             }
 
-            // Moonlight reflection on blue water (แสงจันทร์ตกกระทบน้ำ)
-            for (let wy = waterLine + 5; wy < h; wy += 12) {
-                const waveProg = (wy - waterLine) / (h - waterLine);
-                const spread = waveProg * 120 + 20;
-                const waveOffset = Math.sin(wy * 0.2 + t * 3.5) * 15;
-                const rx = moonX + waveOffset + (Math.random() - 0.5) * spread;
-                const char = Math.random() > 0.5 ? '~' : '=';
-                ctx.fillStyle = `rgba(253, 224, 71, ${0.45 * (1.0 - waveProg)})`;
-                ctx.fillText(char, rx, wy);
-            }
+            // 2. FULL MOON (พระจันทร์วันเพ็ญมุมขวาบน ทำจากตัวอักษรหนาแน่นและแสงเรือง)
+            const moonC = Math.floor(cols * 0.78);
+            const moonR = Math.floor(rows * 0.15);
+            const moonRadiusCols = Math.floor(cols * 0.10);
+            const moonRadiusRows = Math.floor(rows * 0.075);
 
-            // 5. FLOATING LANTERNS (โคมลอยลอยสู่ฟ้า)
-            for (let i = 0; i < 7; i++) {
-                const lx = (Math.sin(i * 1.8 + t * 0.1) * 0.35 + 0.35 + i * 0.12) * w;
-                const ly = ((waterLine * 0.9 - (t * 22 + i * 85)) % (waterLine * 0.9) + (waterLine * 0.9)) % (waterLine * 0.9);
-                ctx.fillStyle = 'rgba(251, 146, 60, 0.9)';
-                ctx.fillText('▲', lx, ly);
-            }
+            for (let dr = -moonRadiusRows * 2; dr <= moonRadiusRows * 2; dr++) {
+                const r = moonR + dr;
+                if (r < 0 || r >= horizonRow) continue;
+                for (let dc = -moonRadiusCols * 2; dc <= moonRadiusCols * 2; dc++) {
+                    const c = moonC + dc;
+                    if (c < 0 || c >= cols) continue;
 
-            // 6. RENDER 3D KRATHONG
-            if (autoRotate) userRotY += 0.006;
-            const bobY = Math.sin(t * 2.2) * 0.06;
-            const camPitch = userRotX;
-            const camDist = 4.2 / zoom;
-            const fov = Math.min(w, h) * 1.15;
-
-            const projPoints = [];
-
-            // Project krathong points
-            for (let i = 0; i < points.length; i++) {
-                const p = points[i];
-                // Y rotation
-                const cy = Math.cos(userRotY), sy = Math.sin(userRotY);
-                let x1 = p[0] * cy + p[2] * sy;
-                let z1 = -p[0] * sy + p[2] * cy;
-                let y1 = p[1] + bobY;
-
-                // X rotation (Camera pitch)
-                const cx = Math.cos(camPitch), sx = Math.sin(camPitch);
-                let y2 = y1 * cx - z1 * sx;
-                let z2 = y1 * sx + z1 * cx + camDist;
-
-                const sxScreen = (x1 / z2) * fov + w * 0.5;
-                const syScreen = -(y2 / z2) * fov + h * 0.62;
-
-                projPoints.push({
-                    x: sxScreen,
-                    y: syScreen,
-                    z: z2,
-                    col: colors[i]
-                });
-            }
-
-            // Candle flame particles
-            for (let f = 0; f < 32; f++) {
-                const fPhase = ((t * 2.5 + f * 0.11) % 1.0);
-                const fy = 0.95 + bobY + fPhase * 0.45;
-                const fr = 0.06 * (1.0 - fPhase);
-                const fa = f * 2.4;
-                let fx = Math.cos(fa) * fr + Math.sin(t * 16) * 0.02 * fPhase;
-                let fz = Math.sin(fa) * fr;
-
-                const cy = Math.cos(userRotY), sy = Math.sin(userRotY);
-                let x1 = fx * cy + fz * sy;
-                let z1 = -fx * sy + fz * cy;
-                let y1 = fy;
-
-                const cx = Math.cos(camPitch), sx = Math.sin(camPitch);
-                let y2 = y1 * cx - z1 * sx;
-                let z2 = y1 * sx + z1 * cx + camDist;
-
-                const sxScreen = (x1 / z2) * fov + w * 0.5;
-                const syScreen = -(y2 / z2) * fov + h * 0.62;
-
-                let col = fPhase < 0.25 ? [255, 255, 250] : fPhase < 0.65 ? [255, 200, 50] : [255, 70, 20];
-                projPoints.push({ x: sxScreen, y: syScreen, z: z2, col: col, isFlame: true });
-            }
-
-            // Sort points by depth
-            projPoints.sort((a, b) => b.z - a.z);
-
-            // Draw Krathong Characters & Blue Water Ripples
-            ctx.font = '11px monospace';
-
-            // Background Blue Water Ripples
-            for (let yw = waterLine + 10; yw < h; yw += 16) {
-                const waveProg = (yw - waterLine) / (h - waterLine);
-                for (let xw = (yw * 7) % 30; xw < w; xw += 35) {
-                    const waveAnim = Math.sin(xw * 0.05 + yw * 0.1 + t * 4);
-                    if (waveAnim > 0.3) {
-                        const waveChar = waveAnim > 0.8 ? '≈' : '~';
-                        // Glowing cyan/sky blue ripples
-                        ctx.fillStyle = `rgba(56, 189, 248, ${0.35 * (1.0 - waveProg * 0.5)})`;
-                        ctx.fillText(waveChar, xw, yw);
-                    }
-                }
-            }
-
-            // Render Krathong points
-            for (let i = 0; i < projPoints.length; i++) {
-                const pt = projPoints[i];
-                if (pt.x >= 0 && pt.x < w && pt.y >= 0 && pt.y < h) {
-                    const c = pt.col;
-                    ctx.fillStyle = `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
-                    const char = pt.isFlame ? '*' : codeChars[(i + Math.floor(t * 8)) % codeChars.length];
-                    ctx.fillText(char, pt.x, pt.y);
-
-                    // REFLECTION ON BLUE WATER (แสงสะท้อนบนผิวน้ำสีฟ้า)
-                    if (pt.y < waterLine) {
-                        const distToWater = waterLine - pt.y;
-                        const reflY = waterLine + distToWater * 0.72;
-                        if (reflY < h) {
-                            const waveShift = Math.sin(pt.x * 0.08 + t * 4.5) * 10;
-                            // ผสมสีของกระทงกับสีฟ้าของผิวน้ำ
-                            ctx.fillStyle = `rgba(${Math.min(255, c[0] * 0.7)}, ${Math.min(255, c[1] * 0.7 + 60)}, ${Math.min(255, c[2] * 0.8 + 120)}, 0.28)`;
-                            ctx.fillText('~', pt.x + waveShift, reflY);
+                    const normDist = Math.sqrt((dc / moonRadiusCols) ** 2 + (dr / moonRadiusRows) ** 2);
+                    if (normDist <= 1.0) {
+                        // Moon Core Body
+                        const charIdx = (Math.abs(dc * 3 + dr * 7) + Math.floor(t * 2)) % DENSE_CHARS.length;
+                        gridChar[r][c] = DENSE_CHARS[charIdx];
+                        const intensity = 1.0 - normDist * 0.3;
+                        gridR[r][c] = 255 * intensity;
+                        gridG[r][c] = 245 * intensity;
+                        gridB[r][c] = 210 * intensity;
+                        gridGlow[r][c] = 2; // Strong bloom
+                    } else if (normDist <= 1.6) {
+                        // Moon outer aura
+                        const aura = 1.0 - (normDist - 1.0) / 0.6;
+                        if (Math.random() < aura * 0.7) {
+                            gridChar[r][c] = (dc + dr) % 2 === 0 ? "·" : "+";
+                            gridR[r][c] = 220 * aura;
+                            gridG[r][c] = 190 * aura;
+                            gridB[r][c] = 130 * aura;
+                            gridGlow[r][c] = 1;
                         }
+                    }
+                }
+            }
+
+            // 3. BACKGROUND SILHOUETTE: PAGODAS & TEMPLES (เจดีย์และยอดปราสาท)
+            // Left Stupa / Dome Pagoda
+            const domeC = Math.floor(cols * 0.20);
+            const domeRCols = Math.floor(cols * 0.14);
+            const domeRRows = Math.floor(rows * 0.15);
+            for (let dc = -domeRCols; dc <= domeRCols; dc++) {
+                const c = domeC + dc;
+                if (c < 0 || c >= cols) continue;
+                const hNorm = Math.sqrt(Math.max(0, 1.0 - (dc / domeRCols) ** 2));
+                const topR = horizonRow - Math.floor(hNorm * domeRRows);
+                for (let r = topR; r <= horizonRow; r++) {
+                    if (r === topR || dc === -domeRCols || dc === domeRCols) {
+                        // Contour Outline
+                        gridChar[r][c] = "%";
+                        gridR[r][c] = 190; gridG[r][c] = 120; gridB[r][c] = 50;
+                        gridGlow[r][c] = 1;
+                    } else if (r === horizonRow - 1 && (c % 2 === 0)) {
+                        gridChar[r][c] = "#";
+                        gridR[r][c] = 160; gridG[r][c] = 100; gridB[r][c] = 40;
+                    }
+                }
+            }
+
+            // Right Temple Spire (ปราสาทและยอดแหลม)
+            const spireC = Math.floor(cols * 0.86);
+            for (let dc = -Math.floor(cols * 0.12); dc <= Math.floor(cols * 0.12); dc++) {
+                const c = spireC + dc;
+                if (c < 0 || c >= cols) continue;
+                const hNorm = Math.max(0, 1.0 - Math.abs(dc) / (cols * 0.12));
+                const topR = horizonRow - Math.floor((hNorm ** 1.6) * (rows * 0.22));
+                for (let r = topR; r <= horizonRow; r++) {
+                    if (r === topR || Math.abs(dc) === Math.floor(cols * 0.12)) {
+                        gridChar[r][c] = "#";
+                        gridR[r][c] = 200; gridG[r][c] = 130; gridB[r][c] = 60;
+                        gridGlow[r][c] = 1;
+                    }
+                }
+            }
+
+            // Horizon line characters
+            for (let c = 0; c < cols; c++) {
+                gridChar[horizonRow][c] = "-";
+                gridR[horizonRow][c] = 80; gridG[horizonRow][c] = 60; gridB[horizonRow][c] = 40;
+            }
+
+            // 4. FLOATING LANTERNS (โคมลอยลอยขึ้นฟ้า)
+            for (let lant of lanterns) {
+                const curY = ((lant.y - t * lant.speed) % 0.42 + 0.42) % 0.42;
+                const lCol = Math.floor(lant.x * cols);
+                const lRow = Math.floor(curY * rows);
+                for (let lineIdx = 0; lineIdx < lant.text.length; lineIdx++) {
+                    const textLine = lant.text[lineIdx];
+                    const r = lRow + lineIdx;
+                    if (r >= 0 && r < horizonRow) {
+                        for (let chIdx = 0; chIdx < textLine.length; chIdx++) {
+                            const c = lCol + chIdx - Math.floor(textLine.length / 2);
+                            if (c >= 0 && c < cols) {
+                                gridChar[r][c] = textLine[chIdx];
+                                gridR[r][c] = 255;
+                                gridG[r][c] = 180;
+                                gridB[r][c] = 70;
+                                gridGlow[r][c] = 2;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 5. BLUE WATER MATRIX BACKGROUND (ผิวน้ำสีฟ้าเข้มตัวอักษรทั้งครึ่งล่าง)
+            for (let r = horizonRow + 1; r < rows; r++) {
+                const depthNorm = (r - horizonRow) / (rows - horizonRow);
+                for (let c = 0; c < cols; c++) {
+                    const wave = Math.sin(c * 0.25 + r * 0.65 + t * 3.0);
+                    // Blue water character choices
+                    if (wave > 0.45) {
+                        gridChar[r][c] = (c + r) % 3 === 0 ? "~" : "-";
+                        // Deep cyan/blue glow
+                        gridR[r][c] = 10 + 15 * depthNorm;
+                        gridG[r][c] = 45 + 50 * (1.0 - depthNorm);
+                        gridB[r][c] = 85 + 75 * (1.0 - depthNorm);
+                    } else if (wave < -0.6) {
+                        gridChar[r][c] = "/";
+                        gridR[r][c] = 8;
+                        gridG[r][c] = 30;
+                        gridB[r][c] = 55;
+                    }
+                }
+            }
+
+            // 6. KRATHONG (กระทงดอกบัว - กลีบเขียว, บัวชมพู, แกนทอง, เปลวเทียน)
+            const kwCols = Math.floor(cols * 0.28);
+            const khRows = Math.floor(rows * 0.11);
+            const bobY = Math.sin(t * 2.5) * 0.6;
+            const actualKrathongRow = krathongRow + Math.floor(bobY);
+
+            // Base & Lotus Petals Grid
+            for (let dr = -khRows; dr <= khRows; dr++) {
+                const r = actualKrathongRow + dr;
+                if (r < 0 || r >= rows) continue;
+                for (let dc = -kwCols; dc <= kwCols; dc++) {
+                    const c = centerCol + dc;
+                    if (c < 0 || c >= cols) continue;
+
+                    const nx = dc / kwCols;
+                    const ny = dr / khRows;
+                    const distSq = nx * nx + ny * ny;
+
+                    if (distSq <= 1.0) {
+                        const dist = Math.sqrt(distSq);
+                        let ch, cr, cg, cb, isGlow = 0;
+
+                        if (dist > 0.70) {
+                            // Layer 1: Outermost Banana Leaves (สีเขียวตองสดใส 1, 0, &, 8, %)
+                            const charIdx = (Math.abs(dc * 5 + dr * 7) + Math.floor(t * 3)) % MID_CHARS.length;
+                            ch = MID_CHARS[charIdx];
+                            cr = 140 - dist * 40;
+                            cg = 210 - dist * 30;
+                            cb = 40;
+                            isGlow = 1;
+                        } else if (dist > 0.45) {
+                            // Layer 2: Lotus Petals Pink/Salmon (กลีบบัวสีชมพูอ่อนถึงบานเย็น)
+                            const charIdx = (Math.abs(dc * 7 + dr * 11) + Math.floor(t * 2)) % DENSE_CHARS.length;
+                            ch = DENSE_CHARS[charIdx];
+                            cr = 245;
+                            cg = 120 + Math.sin(dc) * 30;
+                            cb = 175;
+                            isGlow = 1;
+                        } else {
+                            // Layer 3: Radiant Golden-White Lotus Core (ใจกลางกระทงสว่างจ้า)
+                            const charIdx = (Math.abs(dc * 3 + dr * 5) + Math.floor(t * 4)) % DENSE_CHARS.length;
+                            ch = DENSE_CHARS[charIdx];
+                            cr = 255;
+                            cg = 245;
+                            cb = 190;
+                            isGlow = 2;
+                        }
+
+                        gridChar[r][c] = ch;
+                        gridR[r][c] = cr;
+                        gridG[r][c] = cg;
+                        gridB[r][c] = cb;
+                        gridGlow[r][c] = isGlow;
+                    }
+                }
+            }
+
+            // Candle & Flickering Flame (เทียนและเปลวไฟสั่นไหวแนวตั้ง)
+            const flameHeight = Math.floor(rows * 0.18);
+            const flickerX = Math.sin(t * 16.0) * 0.7;
+
+            for (let fh = 0; fh <= flameHeight; fh++) {
+                const r = actualKrathongRow - Math.floor(khRows * 0.5) - fh;
+                if (r < 0 || r >= rows) continue;
+                const prog = fh / flameHeight;
+                const spread = Math.max(0, Math.floor((1.0 - prog) * 2.5));
+
+                for (let fdc = -spread; fdc <= spread; fdc++) {
+                    const c = centerCol + fdc + Math.floor(flickerX * prog);
+                    if (c < 0 || c >= cols) continue;
+
+                    let ch = "1";
+                    let cr = 255, cg = 255, cb = 255;
+                    if (prog < 0.3) {
+                        // White-hot core
+                        ch = (fdc === 0) ? "1" : "!";
+                        cr = 255; cg = 255; cb = 230;
+                    } else if (prog < 0.7) {
+                        // Golden Yellow
+                        ch = (fdc === 0) ? "1" : "|";
+                        cr = 255; cg = 200; cb = 60;
+                    } else {
+                        // Orange Flame tip
+                        ch = "*";
+                        cr = 255; cg = 100; cb = 20;
+                    }
+
+                    gridChar[r][c] = ch;
+                    gridR[r][c] = cr;
+                    gridG[r][c] = cg;
+                    gridB[r][c] = cb;
+                    gridGlow[r][c] = 2;
+                }
+            }
+
+            // Sparks rising from the flame
+            for (let sp = 0; sp < 12; sp++) {
+                const sPhase = ((t * 2.0 + sp * 0.28) % 1.0);
+                const sr = actualKrathongRow - flameHeight - Math.floor(sPhase * rows * 0.15);
+                const sc = centerCol + Math.floor(Math.sin(sp * 2.7 + t * 4) * 4);
+                if (sr >= 0 && sr < rows && sc >= 0 && sc < cols) {
+                    gridChar[sr][sc] = sp % 2 === 0 ? "1" : "*";
+                    gridR[sr][sc] = 255;
+                    gridG[sr][sc] = 160 * (1.0 - sPhase);
+                    gridB[sr][sc] = 40;
+                    gridGlow[sr][sc] = 1;
+                }
+            }
+
+            // 7. GIANT WATER REFLECTION (เงาสะท้อนกระทงและเปลวไฟทอดยาวลงผิวน้ำ)
+            const reflStartRow = actualKrathongRow + khRows;
+            const maxReflRows = Math.floor(rows * 0.40);
+
+            for (let dr = 0; dr < maxReflRows; dr++) {
+                const r = reflStartRow + dr;
+                if (r >= rows) break;
+                const reflProg = dr / maxReflRows;
+                const waveShift = Math.floor(Math.sin(dr * 0.4 + t * 4.2) * 3.5);
+
+                const sourceR = Math.max(actualKrathongRow - khRows, actualKrathongRow + Math.floor(khRows * 0.5) - Math.floor(dr * 0.5));
+                const spread = Math.floor(kwCols * (1.0 - reflProg * 0.45));
+
+                for (let dc = -spread; dc <= spread; dc++) {
+                    const c = centerCol + dc + waveShift;
+                    if (c < 0 || c >= cols) continue;
+
+                    // Wave disruption check
+                    if ((c + r + Math.floor(t * 3)) % 4 === 0) continue;
+
+                    const sc = centerCol + dc;
+                    if (sc >= 0 && sc < cols && gridChar[sourceR][sc] !== " ") {
+                        const origR = gridR[sourceR][sc];
+                        const origG = gridG[sourceR][sc];
+                        const origB = gridB[sourceR][sc];
+
+                        // Blend reflection with deep blue water
+                        const decay = (1.0 - reflProg * 0.75);
+                        gridChar[r][c] = (dc === 0) ? "|" : ((r + c) % 2 === 0 ? "~" : "=");
+                        gridR[r][c] = Math.min(255, origR * 0.65 * decay);
+                        gridG[r][c] = Math.min(255, (origG * 0.70 + 30) * decay);
+                        gridB[r][c] = Math.min(255, (origB * 0.60 + 80) * decay);
+                        if (reflProg < 0.3) gridGlow[r][c] = 1;
+                    }
+                }
+            }
+
+            // 8. WATER PETALS / SPARKS (กลุ่มตัวอักษรดอกไม้/พิกเซลลอยน้ำ 111111, &o)
+            for (let wsp of waterSparks) {
+                const wr = Math.floor(wsp.y * rows);
+                const wc = Math.floor(wsp.x * cols);
+                const lines = wsp.text.split("\n");
+                for (let l = 0; l < lines.length; l++) {
+                    const r = wr + l;
+                    if (r >= horizonRow && r < rows) {
+                        for (let k = 0; k < lines[l].length; k++) {
+                            const c = wc + k;
+                            if (c >= 0 && c < cols) {
+                                gridChar[r][c] = lines[l][k];
+                                gridR[r][c] = 90;
+                                gridG[r][c] = 230;
+                                gridB[r][c] = 110;
+                                gridGlow[r][c] = 1;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 9. DRAW PASS: RENDER ALL ASCII CHARACTERS WITH REALISTIC BLOOM
+            ctx.font = `bold ${FONT_SIZE}px 'Consolas', 'Courier New', monospace`;
+            ctx.textBaseline = "top";
+
+            // Pass 1: Glowing / Bloom pass (วาดเงาแสงเรือง)
+            for (let r = 0; r < rows; r++) {
+                const yPos = r * CHAR_H;
+                for (let c = 0; c < cols; c++) {
+                    const glowLevel = gridGlow[r][c];
+                    if (glowLevel > 0) {
+                        const ch = gridChar[r][c];
+                        const xPos = c * CHAR_W;
+                        const red = gridR[r][c];
+                        const green = gridG[r][c];
+                        const blue = gridB[r][c];
+
+                        ctx.shadowColor = `rgb(${red}, ${green}, ${blue})`;
+                        ctx.shadowBlur = glowLevel === 2 ? 14 : 7;
+                        ctx.fillStyle = `rgb(${red}, ${green}, ${blue})`;
+                        ctx.fillText(ch, xPos, yPos);
+                    }
+                }
+            }
+
+            // Reset shadow blur for crisp text pass
+            ctx.shadowBlur = 0;
+
+            // Pass 2: Sharp foreground character pass
+            for (let r = 0; r < rows; r++) {
+                const yPos = r * CHAR_H;
+                for (let c = 0; c < cols; c++) {
+                    const ch = gridChar[r][c];
+                    if (ch !== " ") {
+                        const xPos = c * CHAR_W;
+                        const red = gridR[r][c];
+                        const green = gridG[r][c];
+                        const blue = gridB[r][c];
+                        ctx.fillStyle = `rgb(${red}, ${green}, ${blue})`;
+                        ctx.fillText(ch, xPos, yPos);
                     }
                 }
             }
