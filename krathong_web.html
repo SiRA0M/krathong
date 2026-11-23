@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loy Krathong 3D ASCII Panorama</title>
+    <title>Loy Krathong 3D High-Detail ASCII Panorama</title>
     <style>
         * {
             box-sizing: border-box;
@@ -28,13 +28,13 @@
     </style>
 </head>
 <body>
-    <canvas id="asciiCanvas"></canvas>
+    <canvas id="asciiCanvas" role="img" aria-label="ภาพพาโนรามา ASCII เคลื่อนไหวในเทศกาลลอยกระทง"></canvas>
 
     <script>
         const canvas = document.getElementById('asciiCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Font & Grid Dimensions
+        // High-density character grid resolution
         const FONT_SIZE = 12;
         const CHAR_W = 7.2;
         const CHAR_H = 12.0;
@@ -51,8 +51,8 @@
         }
 
         // =========================================================
-        // 1. TRUE 3D PARAMETRIC LOTUS KRATHONG MODEL
-        // (โมเดลกระทง 3 มิติแท้ๆ กลีบบัวโค้งเว้าบานเป็นแอ่ง มีมิติลึกชัดเจน)
+        // 1. ULTRA HIGH-DETAIL 3D MATHEMATICAL LOTUS KRATHONG
+        // (กระทงดอกบัว 3 มิติวิจิตรตระการตา กลีบซ้อนชั้น แอ่งลึก แสงเงาสมจริง)
         // =========================================================
         const krathongPoints = [];
         const krathongColors = [];
@@ -68,11 +68,11 @@
             ];
         }
 
-        // Mathematical lotus petal with realistic 3D cupping curve
+        // Build individual pointed 3D petal with realistic curved cupping
         function build3DPetal(azimuth, openAngle, length, width, yOffset, radialOffset, type) {
-            const uSteps = 16;
-            const vSteps = 10;
-            const scale = 0.62;
+            const uSteps = 20; // High longitudinal resolution
+            const vSteps = 12; // High lateral resolution
+            const scale = 0.65;
 
             length *= scale;
             width *= scale;
@@ -80,52 +80,56 @@
             radialOffset *= scale;
 
             for (let i = 0; i < uSteps; i++) {
-                const u = 0.05 + (i / (uSteps - 1)) * 0.95;
+                const u = 0.04 + (i / (uSteps - 1)) * 0.96;
                 for (let j = 0; j < vSteps; j++) {
                     const v = (j / (vSteps - 1)) * 2.0 - 1.0;
 
-                    // Pointed oval outline
+                    // Pointed lotus petal outline (กลีบเรียวแหลม)
                     const sinTaper = Math.sin(Math.PI * Math.pow(u, 0.75));
-                    const w = width * Math.pow(Math.max(0, sinTaper), 0.8) + 0.003;
+                    const w = width * Math.pow(Math.max(0, sinTaper), 0.8) + 0.002;
                     const ly = u * length;
 
-                    // 3D Cupping: arching inward to form a cup/bowl petal
-                    const zl = 0.60 * width * (1.0 - v * v) * (1.0 - 0.40 * u);
+                    // 3D Cupping: arching inward to create natural bowl-like petal
+                    const zl = 0.65 * width * (1.0 - v * v) * (1.0 - 0.40 * u);
 
                     // Opening tilt angle
                     const y = ly * Math.cos(openAngle) - zl * Math.sin(openAngle);
                     const z = radialOffset + ly * Math.sin(openAngle) + zl * Math.cos(openAngle);
                     const x = v * w;
 
-                    // Azimuth rotation around center vertical axis
+                    // Azimuth rotation around krathong center
                     const cosA = Math.cos(azimuth), sinA = Math.sin(azimuth);
                     const xr = x * cosA + z * sinA;
                     const zr = -x * sinA + z * cosA;
                     const yr = y + yOffset;
 
-                    // Calculate 3D normal estimate for lighting
+                    // Surface normal for lighting
                     const nx = v * cosA;
                     const ny = Math.sin(openAngle);
                     const nz = v * sinA + Math.cos(openAngle);
 
                     let col;
+                    const isEdge = (Math.abs(v) > 0.75 || u > 0.85);
+
                     if (type === 'leaf') {
-                        // Banana leaf folds: rich green with yellow tips
-                        const baseG = mix([35, 120, 25], [145, 210, 40], u);
-                        const edgeH = 0.3 * Math.pow(Math.abs(v), 4);
-                        col = mix(baseG, [190, 235, 70], edgeH);
+                        // Banana leaf folds: rich green with yellow-green tip & edge
+                        const baseG = mix([35, 115, 25], [145, 215, 45], u);
+                        col = isEdge ? [185, 240, 70] : baseG;
                     } else if (type === 'petal_out') {
-                        // Outer lotus petals: deep magenta/rose tip to pale pink base
-                        col = mix([255, 195, 220], [245, 50, 135], Math.pow(u, 1.2));
+                        // Outer lotus petals: deep rose magenta with delicate white edges
+                        const baseP = mix([255, 180, 215], [240, 45, 130], Math.pow(u, 1.2));
+                        col = isEdge ? [255, 230, 245] : baseP;
                     } else if (type === 'petal_mid') {
-                        // Middle lotus petals: bright warm pink
-                        col = mix([255, 225, 240], [255, 95, 175], Math.pow(u, 1.3));
+                        // Mid lotus petals: vibrant lotus pink
+                        const baseP = mix([255, 220, 238], [255, 85, 170], Math.pow(u, 1.3));
+                        col = isEdge ? [255, 245, 250] : baseP;
                     } else if (type === 'petal_in') {
                         // Inner lotus petals: soft blushing pink to ivory
-                        col = mix([255, 245, 230], [255, 150, 200], Math.pow(u, 1.4));
+                        const baseP = mix([255, 245, 230], [255, 140, 195], Math.pow(u, 1.4));
+                        col = isEdge ? [255, 255, 245] : baseP;
                     } else if (type === 'flower') {
-                        // Marigold golden accent
-                        col = mix([255, 215, 50], [255, 140, 20], u);
+                        // Marigold flower petals: golden yellow
+                        col = mix([255, 215, 50], [255, 145, 20], u);
                     }
 
                     krathongPoints.push([xr, yr, zr]);
@@ -142,41 +146,41 @@
             krathongNormals.length = 0;
             krathongTypes.length = 0;
 
-            const scale = 0.62;
+            const scale = 0.65;
 
-            // 1. Layer 1: Outermost Banana Leaf Folds (16 กลีบ ฐานกว้างบานออก)
+            // 1. Layer 1: Outermost Folded Banana Leaves (16 กลีบ ฐานกว้างบานออก)
             for (let i = 0; i < 16; i++) {
                 const ang = (i / 16) * Math.PI * 2;
-                build3DPetal(ang, 1.35, 1.35, 0.46, -0.12, 0.90, 'leaf');
+                build3DPetal(ang, 1.35, 1.40, 0.46, -0.12, 0.92, 'leaf');
             }
 
-            // 2. Layer 2: Outer Lotus Petals (14 กลีบ บานทรงแอ่ง)
+            // 2. Layer 2: Outermost Blooming Lotus Petals (14 กลีบ บานทรงแอ่ง)
             for (let i = 0; i < 14; i++) {
                 const ang = ((i + 0.5) / 14) * Math.PI * 2;
-                build3DPetal(ang, 1.05, 1.25, 0.42, -0.05, 0.72, 'petal_out');
+                build3DPetal(ang, 1.05, 1.30, 0.42, -0.05, 0.74, 'petal_out');
             }
 
             // 3. Layer 3: Middle Lotus Petals (12 กลีบ ชูชันขึ้น)
             for (let i = 0; i < 12; i++) {
                 const ang = (i / 12) * Math.PI * 2;
-                build3DPetal(ang, 0.72, 1.10, 0.38, 0.02, 0.52, 'petal_mid');
+                build3DPetal(ang, 0.72, 1.15, 0.38, 0.02, 0.54, 'petal_mid');
             }
 
             // 4. Layer 4: Inner Lotus Petals (10 กลีบ โอบรอบเกสร)
             for (let i = 0; i < 10; i++) {
                 const ang = ((i + 0.5) / 10) * Math.PI * 2;
-                build3DPetal(ang, 0.38, 0.95, 0.32, 0.08, 0.32, 'petal_in');
+                build3DPetal(ang, 0.38, 0.98, 0.34, 0.08, 0.34, 'petal_in');
             }
 
-            // 5. Layer 5: Marigold Flower Ring (8 ช่อ ดอกไม้สีทองล้อมโคนเทียน)
+            // 5. Layer 5: Marigold Garland Ring (8 ช่อ ดอกไม้สีทองอร่ามล้อมโคนเทียน)
             for (let i = 0; i < 8; i++) {
                 const ang = (i / 8) * Math.PI * 2;
-                build3DPetal(ang, 0.20, 0.65, 0.26, 0.12, 0.18, 'flower');
+                build3DPetal(ang, 0.20, 0.68, 0.28, 0.12, 0.18, 'flower');
             }
 
             // 6. Base Banana Trunk Disc
-            for (let r = 0.20 * scale; r <= 1.35 * scale; r += 0.15 * scale) {
-                for (let a = 0; a < Math.PI * 2; a += Math.PI / 12) {
+            for (let r = 0.20 * scale; r <= 1.40 * scale; r += 0.12 * scale) {
+                for (let a = 0; a < Math.PI * 2; a += Math.PI / 14) {
                     const x = r * Math.cos(a);
                     const z = r * Math.sin(a);
                     krathongPoints.push([x, -0.12 * scale, z]);
@@ -191,9 +195,9 @@
                 }
             }
 
-            // 7. Tall 3D Center Candle (เทียนแท่งตั้งเด่นตรงกลาง)
-            for (let h = 0.10 * scale; h <= 1.35 * scale; h += 0.08 * scale) {
-                for (let a = 0; a < Math.PI * 2; a += Math.PI / 5) {
+            // 7. Tall 3D Center Candle (เทียนแท่งทรงกระบอก 3D ตั้งตรงกลาง)
+            for (let h = 0.10 * scale; h <= 1.40 * scale; h += 0.07 * scale) {
+                for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
                     const rCandle = 0.09 * scale;
                     krathongPoints.push([rCandle * Math.cos(a), h, rCandle * Math.sin(a)]);
                     krathongColors.push([255, 245, 195]);
@@ -202,14 +206,14 @@
                 }
             }
 
-            // 8. 3 Incense Sticks (ธูป 3 ดอก ปักเอียง)
+            // 8. 3 Incense Sticks (ธูป 3 ดอก ปักเอียงตามประเพณี)
             const incenseAngles = [-0.18, 0.0, 0.18];
             for (let idx = 0; idx < 3; idx++) {
                 const tilt = incenseAngles[idx];
-                for (let h = 0.10 * scale; h <= 1.75 * scale; h += 0.08 * scale) {
+                for (let h = 0.10 * scale; h <= 1.80 * scale; h += 0.08 * scale) {
                     const xi = (idx - 1) * 0.08 * scale + Math.sin(tilt) * h;
                     const zi = 0.08 * scale + Math.cos(tilt) * 0.02 * scale;
-                    const isTip = (h >= 1.65 * scale);
+                    const isTip = (h >= 1.70 * scale);
                     krathongPoints.push([xi, h, zi]);
                     krathongColors.push(isTip ? [255, 130, 40] : [160, 80, 45]);
                     krathongNormals.push([0, 1, 0]);
@@ -294,13 +298,12 @@
             }
 
             // ==========================================
-            // 2. PERFECTLY ROUND FULL MOON (พระจันทร์กลมจริงๆ 100% ด้วยคณิตศาสตร์พิกเซล)
+            // 2. PERFECTLY ROUND FULL MOON (พระจันทร์กลมดิบ 100%)
             // ==========================================
             const moonCenterCol = Math.floor(COLS * 0.82);
-            const moonCenterRow = Math.floor(ROWS * 0.20);
-            const moonRadiusPx = Math.min(canvas.width, canvas.height) * 0.095; // รัศมีทรงกลมพิกเซลแท้ๆ
+            const moonCenterRow = Math.floor(ROWS * 0.18);
+            const moonRadiusPx = Math.min(canvas.width, canvas.height) * 0.095;
 
-            // คำนวณทรงกลมแท้ๆ โดยปรับแก้ Aspect Ratio ของฟอนต์
             const checkRadiusCols = Math.ceil((moonRadiusPx * 1.8) / CHAR_W);
             const checkRadiusRows = Math.ceil((moonRadiusPx * 1.8) / CHAR_H);
 
@@ -311,11 +314,9 @@
                     const c = moonCenterCol + dc;
                     if (c < 0 || c >= COLS) continue;
 
-                    // ระยะห่างแบบพิกเซลแท้ๆ (Pixel-perfect Euclidean Distance)
                     const pxDist = Math.sqrt((dc * CHAR_W) ** 2 + (dr * CHAR_H) ** 2);
 
                     if (pxDist <= moonRadiusPx) {
-                        // องค์พระจันทร์กลมดิบ 100% สว่างสีขาวนวล
                         const dNorm = pxDist / moonRadiusPx;
                         const moonChars = ["@", "0", "0", "8", "%", "#", "&", "+"];
                         const charIdx = (Math.abs(dc * 3 + dr * 7) + Math.floor(t * 1.5)) % moonChars.length;
@@ -325,9 +326,8 @@
                         gridR[r][c] = bright;
                         gridG[r][c] = bright * 0.98;
                         gridB[r][c] = bright * 0.92;
-                        gridGlow[r][c] = 2; // สว่างจ้าเรืองแสง
+                        gridGlow[r][c] = 2;
                     } else if (pxDist <= moonRadiusPx * 1.65) {
-                        // วงรัศมีแสงจันทร์เรืองแสงรอบวงกลมสมบูรณ์แบบ
                         const auraProg = 1.0 - (pxDist - moonRadiusPx) / (moonRadiusPx * 0.65);
                         if (Math.random() < auraProg * 0.40) {
                             gridChar[r][c] = (dr + dc) % 2 === 0 ? "·" : "+";
@@ -369,7 +369,7 @@
             }
 
             // ==========================================
-            // 4. CLEAN THAI TEMPLE ON LEFT (หลังคาทรงจั่วแน่นๆ ลบก้อนกลมๆ และลบฝั่งขวาออก)
+            // 4. CLEAN THAI TEMPLE ON LEFT (หลังคาทรงจั่วแน่นๆ ฝั่งซ้าย)
             // ==========================================
             const leftTempleC = Math.floor(COLS * 0.22);
             const templeHalfW = Math.floor(COLS * 0.14);
@@ -406,7 +406,7 @@
                 }
             }
 
-            // ช่อฟ้าปลายจั่ว (Chofah tips)
+            // ยอดช่อฟ้าปลายจั่ว
             if (roofPeakR - 1 >= 0 && leftTempleC < COLS) {
                 gridChar[roofPeakR - 1][leftTempleC] = "^";
                 gridR[roofPeakR - 1][leftTempleC] = 255; gridG[roofPeakR - 1][leftTempleC] = 210; gridB[roofPeakR - 1][leftTempleC] = 70;
@@ -479,7 +479,106 @@
                 }
             }
 
-            // ยอดปรางค์และแสงทองตรงกลางขอบฟ้า
+            // ==========================================
+            // 5. MAJESTIC THAI CHEDI ON THE RIGHT
+            // (พระเจดีย์ทรงระฆังคว่ำแบบไทยแท้ฝั่งขวา ตรงตามรูปที่ผู้ใช้ส่งมาเป๊ะๆ)
+            // ==========================================
+            function drawThaiChedi(centerCol, baseRow, width, height) {
+                // Tier 1: Stepped Plinth / ฐานเขียง 3 ชั้น
+                const plinthH = Math.floor(height * 0.18);
+                for (let i = 0; i < 3; i++) {
+                    const tierR = baseRow - Math.floor((i + 1) * (plinthH / 3));
+                    const tierW = Math.floor(width * (1.0 - i * 0.08));
+                    for (let r = tierR; r <= tierR + Math.floor(plinthH / 3); r++) {
+                        for (let dc = -tierW; dc <= tierW; dc++) {
+                            const c = centerCol + dc;
+                            if (c >= 0 && c < COLS && r < baseRow) {
+                                const isEdge = (Math.abs(dc) === tierW || r === tierR);
+                                gridChar[r][c] = isEdge ? "=" : ":";
+                                gridR[r][c] = isEdge ? 240 : 140;
+                                gridG[r][c] = isEdge ? 165 : 85;
+                                gridB[r][c] = isEdge ? 55 : 35;
+                                if (isEdge) gridGlow[r][c] = 1;
+                            }
+                        }
+                    }
+                }
+
+                // Tier 2: Bell Body / องค์ระฆังคว่ำสีทอง (Curved Bell Silhouette)
+                const bellH = Math.floor(height * 0.38);
+                const bellBaseR = baseRow - plinthH;
+                const bellTopR = bellBaseR - bellH;
+                const bellBaseW = Math.floor(width * 0.72);
+
+                for (let r = bellTopR; r < bellBaseR; r++) {
+                    const normY = (r - bellTopR) / bellH; // 0 at top, 1 at base
+                    // Traditional Thai bell curvature (เว้าคอดด้านบน และผายออกด้านล่าง)
+                    const bellCurveW = Math.floor(bellBaseW * (0.35 + 0.65 * Math.sin(normY * Math.PI * 0.5)));
+
+                    for (let dc = -bellCurveW; dc <= bellCurveW; dc++) {
+                        const c = centerCol + dc;
+                        if (c >= 0 && c < COLS) {
+                            const isEdge = (Math.abs(dc) === bellCurveW);
+                            gridChar[r][c] = isEdge ? "%" : (normY > 0.8 ? "=" : "8");
+                            gridR[r][c] = isEdge ? 255 : 225;
+                            gridG[r][c] = isEdge ? 185 : 155;
+                            gridB[r][c] = isEdge ? 65 : 45;
+                            gridGlow[r][c] = isEdge ? 2 : 1;
+                        }
+                    }
+                }
+
+                // Tier 3: Throne (บัลลังก์สี่เหลี่ยมเหนือองค์ระฆัง)
+                const throneH = Math.floor(height * 0.08);
+                const throneW = Math.floor(bellBaseW * 0.42);
+                for (let r = bellTopR - throneH; r < bellTopR; r++) {
+                    for (let dc = -throneW; dc <= throneW; dc++) {
+                        const c = centerCol + dc;
+                        if (c >= 0 && c < COLS) {
+                            gridChar[r][c] = (Math.abs(dc) === throneW) ? "#" : "=";
+                            gridR[r][c] = 250; gridG[r][c] = 190; gridB[r][c] = 60;
+                            gridGlow[r][c] = 1;
+                        }
+                    }
+                }
+
+                // Tier 4: Spire Rings & Needle Tip (ปล้องไฉน ปลียอด เม็ดน้ำค้าง สู่ดวงจันทร์)
+                const spireBaseR = bellTopR - throneH;
+                const spireH = height - (plinthH + bellH + throneH);
+
+                for (let sh = 0; sh < spireH; sh++) {
+                    const r = spireBaseR - sh;
+                    if (r < 0 || r >= horizonR) continue;
+                    const normH = sh / spireH; // 0 at base, 1 at tip
+                    const ringW = Math.max(0, Math.floor((1.0 - normH) * (throneW * 0.75)));
+
+                    for (let dc = -ringW; dc <= ringW; dc++) {
+                        const c = centerCol + dc;
+                        if (c >= 0 && c < COLS) {
+                            const ch = (normH > 0.85) ? (dc === 0 ? "!" : "|") : ((sh % 2 === 0) ? "=" : "#");
+                            gridChar[r][c] = ch;
+                            gridR[r][c] = 255;
+                            gridG[r][c] = 210 - normH * 30;
+                            gridB[r][c] = 70;
+                            gridGlow[r][c] = 2; // ยอดสถูปสีทองสว่างจ้าสู่ดวงจันทร์
+                        }
+                    }
+                }
+            }
+
+            // Draw Main Thai Chedi on the Right (ตรงใต้พระจันทร์ ยอดชี้สู่ดวงจันทร์)
+            const mainChediC = Math.floor(COLS * 0.82);
+            const mainChediW = Math.floor(COLS * 0.11);
+            const mainChediH = Math.floor(ROWS * 0.32);
+            drawThaiChedi(mainChediC, horizonR, mainChediW, mainChediH);
+
+            // Draw Companion Chedi to the left of main chedi (เหมือนรูปที่ 1 ในภาพ)
+            const subChediC = Math.floor(COLS * 0.72);
+            const subChediW = Math.floor(COLS * 0.065);
+            const subChediH = Math.floor(ROWS * 0.20);
+            drawThaiChedi(subChediC, horizonR, subChediW, subChediH);
+
+            // Center Spires & Golden Radial Light (ตรงกลาง)
             const spireConfigs = [
                 { offset: -7, h: Math.floor(ROWS * 0.16) },
                 { offset: -3, h: Math.floor(ROWS * 0.21) },
@@ -522,7 +621,7 @@
                 }
             }
 
-            // เขื่อนหินริมแม่น้ำ
+            // เขื่อนหินริมน้ำ
             for (let c = 0; c < COLS; c++) {
                 gridChar[horizonR][c] = "=";
                 gridR[horizonR][c] = 130; gridG[horizonR][c] = 85; gridB[horizonR][c] = 40;
@@ -534,7 +633,7 @@
             }
 
             // ==========================================
-            // 5. DEEP DARK GREEN WATER (ผิวน้ำสีเขียวเข้ม)
+            // 6. DEEP DARK GREEN WATER (ผิวน้ำสีเขียวเข้ม)
             // ==========================================
             for (let r = horizonR + 1; r < ROWS; r++) {
                 const depthProg = (r - horizonR) / (ROWS - horizonR);
@@ -555,19 +654,19 @@
             }
 
             // ==========================================
-            // 6. TRUE 3D PROJECTION OF BEAUTIFUL BLOOMING KRATHONG
-            // (กระทง 3 มิติแท้ๆ กลีบโค้งเว้าบานเป็นแอ่ง มีแสงเงา ไม่แบน!)
+            // 7. ULTRA HIGH-DETAIL 3D LOTUS KRATHONG PROJECTION
+            // (กระทง 3 มิติวิจิตรตระการตา กลีบดอกบัวโค้งเว้าบานเป็นแอ่ง มีแสงเงา)
             // ==========================================
             const autoRotY = t * 0.35;
             const bobY = Math.sin(t * 2.2) * 0.04;
-            const camPitch = 0.48; // มุมก้มลงมองเห็นแอ่งในกระทงชัดเจน
+            const camPitch = 0.50; // มุมก้มลงกำลังดี เห็นแอ่งดอกบัว กลีบซ้อน และเทียนชัดเจน
             const camDist = 4.4;
-            const fov = Math.min(COLS * CHAR_W, ROWS * CHAR_H) * 0.90;
+            const fov = Math.min(COLS * CHAR_W, ROWS * CHAR_H) * 0.92;
 
             const projected3D = [];
 
-            // Light vector for 3D shading
-            const lightDir = [0.3, 0.9, -0.4];
+            // Light vector for realistic 3D normal shading
+            const lightDir = [0.35, 0.85, -0.40];
             const lMag = Math.sqrt(lightDir[0]**2 + lightDir[1]**2 + lightDir[2]**2);
             lightDir[0] /= lMag; lightDir[1] /= lMag; lightDir[2] /= lMag;
 
@@ -577,13 +676,12 @@
                 const norm = krathongNormals[i];
                 const mat = krathongTypes[i];
 
-                // 1. Rotation around Y-axis (Azimuth)
+                // 1. Azimuth Rotation around Y-axis
                 const cy = Math.cos(autoRotY), sy = Math.sin(autoRotY);
                 let x1 = p[0] * cy + p[2] * sy;
                 let z1 = -p[0] * sy + p[2] * cy;
                 let y1 = p[1] + bobY;
 
-                // Rotate normal around Y
                 let nx1 = norm[0] * cy + norm[2] * sy;
                 let nz1 = -norm[0] * sy + norm[2] * cy;
                 let ny1 = norm[1];
@@ -598,7 +696,7 @@
 
                 if (z2 <= 0.2) continue;
 
-                // 3. 3D Perspective Projection
+                // 3. Perspective Projection
                 const screenX = (x1 / z2) * (fov / CHAR_W) + centerC;
                 const screenY = -(y2 / z2) * (fov / CHAR_H) + (ROWS * 0.68);
 
@@ -610,25 +708,24 @@
                     if (depth > gridZ[r][c]) {
                         gridZ[r][c] = depth;
 
-                        // 3D Diffuse shading (แสงเงา 3 มิติ)
-                        const dot = Math.max(0.2, (nx1 * lightDir[0] + ny2 * lightDir[1] + nz2 * lightDir[2]));
-                        const shadedR = Math.min(255, col[0] * (0.65 + dot * 0.35));
-                        const shadedG = Math.min(255, col[1] * (0.65 + dot * 0.35));
-                        const shadedB = Math.min(255, col[2] * (0.65 + dot * 0.35));
+                        // 3D Diffuse shading
+                        const dot = Math.max(0.25, (nx1 * lightDir[0] + ny2 * lightDir[1] + nz2 * lightDir[2]));
+                        const shadedR = Math.min(255, col[0] * (0.60 + dot * 0.40));
+                        const shadedG = Math.min(255, col[1] * (0.60 + dot * 0.40));
+                        const shadedB = Math.min(255, col[2] * (0.60 + dot * 0.40));
 
-                        // Character selection by luminance & material
                         let ch;
                         let glow = 1;
                         if (mat === 'leaf') {
-                            ch = dot > 0.6 ? "%" : "+";
+                            ch = dot > 0.65 ? "%" : "+";
                         } else if (mat === 'petal_out') {
-                            ch = dot > 0.6 ? "@" : "%";
+                            ch = dot > 0.65 ? "@" : "%";
                             glow = 2;
                         } else if (mat === 'petal_mid') {
-                            ch = dot > 0.5 ? "%" : "&";
+                            ch = dot > 0.55 ? "%" : "&";
                             glow = 2;
                         } else if (mat === 'petal_in') {
-                            ch = dot > 0.6 ? "8" : "&";
+                            ch = dot > 0.60 ? "8" : "&";
                             glow = 2;
                         } else if (mat === 'flower') {
                             ch = "*";
@@ -657,11 +754,11 @@
                 }
             }
 
-            // 3D Candle Flame Particles (เปลวไฟ 3D พวยพุ่งสั่นไหว)
-            const candleTop = 0.85 + bobY;
+            // 3D Candle Flame Particles (เปลวเทียนสว่างจ้าสั่นไหว 3D)
+            const candleTop = 0.90 + bobY;
             for (let f = 0; f < 36; f++) {
                 const fPhase = ((t * 2.5 + f * 0.10) % 1.0);
-                const fy = candleTop + fPhase * 0.50;
+                const fy = candleTop + fPhase * 0.52;
                 const fr = 0.065 * (1.0 - fPhase);
                 const fa = f * 2.4;
                 const fx = Math.cos(fa) * fr + Math.sin(t * 16) * 0.02 * fPhase;
@@ -690,7 +787,7 @@
             }
 
             // ==========================================
-            // 7. EXPANSIVE 3D WATER REFLECTION
+            // 8. 3D WATER REFLECTION
             // ==========================================
             const waterLine = Math.floor(ROWS * 0.67);
             for (let i = 0; i < projected3D.length; i += 2) {
@@ -743,7 +840,7 @@
             }
 
             // ==========================================
-            // 8. TWO-PASS CANVAS RENDERING (BLOOM & CRISP TEXT)
+            // 9. TWO-PASS CANVAS RENDERING (BLOOM & CRISP TEXT)
             // ==========================================
             ctx.font = `bold ${FONT_SIZE}px 'Consolas', 'Courier New', monospace`;
             ctx.textBaseline = "top";
