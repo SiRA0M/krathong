@@ -487,8 +487,9 @@
             const stupaC = Math.floor(COLS * 0.08);
             const stupaW = Math.floor(COLS * 0.045);
             const stupaH = Math.floor(ROWS * 0.22);
-            for (let r = horizonR - int(stupaH * 0.45); r < horizonR; r++) {
-                const normY = (r - (horizonR - int(stupaH * 0.45))) / float(stupaH * 0.45);
+            const stupaBaseH = Math.floor(stupaH * 0.45);
+            for (let r = horizonR - stupaBaseH; r < horizonR; r++) {
+                const normY = (r - (horizonR - stupaBaseH)) / stupaBaseH;
                 const bw = Math.floor(stupaW * Math.sin(normY * Math.PI * 0.75 + 0.25));
                 for (let dc = -bw; dc <= bw; dc++) {
                     const c = stupaC + dc;
