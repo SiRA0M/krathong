@@ -22,7 +22,7 @@ def rot_x(points, angle):
     z = points[:, 2]
     return np.stack([x, y * c - z * s, y * s + z * c], axis=-1)
 
-class Compact3DKrathong:
+class ExactCompact3DKrathong:
     def __init__(self):
         self.points = []
         self.colors = []
@@ -32,7 +32,7 @@ class Compact3DKrathong:
     def build_petal(self, a, op, ln, wd, y0, r0, mat_type):
         u_steps = 14
         v_steps = 8
-        scale = 0.70
+        scale = 0.55
         ln *= scale
         wd *= scale
         y0 *= scale
@@ -85,7 +85,7 @@ class Compact3DKrathong:
         for i in range(8):
             self.build_petal((i / 8.0) * math.pi * 2, 0.22, 0.70, 0.28, 0.08, 0.22, 'flower')
 
-        scale = 0.70
+        scale = 0.55
         radii = np.linspace(0.20 * scale, 1.35 * scale, 6, dtype=np.float32)
         angles = np.linspace(0, 2 * math.pi, 16, endpoint=False, dtype=np.float32)
         R_grid, A_grid = np.meshgrid(radii, angles, indexing='ij')
@@ -112,7 +112,7 @@ class Compact3DKrathong:
         self.static_cols = np.concatenate(self.colors, axis=0)
 
 def main():
-    model = Compact3DKrathong()
+    model = ExactCompact3DKrathong()
     pts_base = model.static_pts
     cols_base = model.static_cols
     mats_base = model.materials
@@ -120,17 +120,24 @@ def main():
     sys.stdout.write("\033[?25l")
     sys.stdout.flush()
 
-    moon_lines = [
-        "    #@0000000000@..    ",
-        "  +0&@000000000&0000+  ",
-        " 00000000000000&000000 ",
-        "00000000&0000000000000 ",
-        "0000000000000000000000 ",
-        " 00000000000000000000  ",
-        " &000000000000000000   ",
-        "  +0000000000000000    ",
-        "   +0000000000000      ",
-        "     +000000000        "
+    exact_moon = [
+        "      #0000666..     ",
+        "   +06#000000&000    ",
+        "  006#0000+08#60000  ",
+        " 00000&600066000000  ",
+        " 000000#000000660    ",
+        " 000000#000000000    ",
+        " &0000600*60000      ",
+        "  000060000000       ",
+        "   000600000         ",
+        "    &006000          "
+    ]
+
+    lanterns = [
+        (0.155, 0.38, ["7&8#", "#0#", "#8*:"]),
+        (0.275, 0.58, ["488", "#@0#", "1&66"]),
+        (0.505, 0.22, ["100#-", "%&0#1-", "&4B"]),
+        (0.628, 0.44, ["33", "&4&#", "%&0#", "7#"])
     ]
 
     t0 = time.time()
@@ -143,7 +150,7 @@ def main():
             W = max(60, min(160, term_w))
             H = max(28, min(65, term_h - 1))
 
-            horizon = int(H * 0.46)
+            horizon = int(H * 0.54)
             center_x = int(W * 0.50)
 
             char_buf = np.full((H, W), ' ', dtype=object)
@@ -152,18 +159,17 @@ def main():
 
             # 1. Sky & Stars
             np.random.seed(42)
-            for _ in range(int(W * 0.7)):
+            for _ in range(int(W * 0.5)):
                 sc = np.random.randint(0, W)
                 sr = np.random.randint(0, horizon)
-                shimmer = math.sin(t * 2.0 + sc) * 0.5 + 0.5
-                if shimmer > 0.4:
-                    char_buf[sr, sc] = '.' if shimmer < 0.8 else '*'
-                    col_buf[sr, sc] = [200, 200, 255]
+                shimmer = math.sin(t * 2.2 + sc) * 0.5 + 0.5
+                char_buf[sr, sc] = '.' if shimmer < 0.7 else '*'
+                col_buf[sr, sc] = [190, 190, 255]
 
             # 2. Moon
-            moon_c = int(W * 0.80)
-            moon_r = max(2, int(H * 0.08))
-            for mr, line in enumerate(moon_lines):
+            moon_c = int(W * 0.77)
+            moon_r = max(2, int(H * 0.12))
+            for mr, line in enumerate(exact_moon):
                 r = moon_r + mr
                 if r >= horizon: break
                 for mc, ch in enumerate(line):
@@ -172,111 +178,95 @@ def main():
                         char_buf[r, c] = ch
                         col_buf[r, c] = [255, 250, 230]
 
-            # 3. DISTINCT TEMPLE ARCHITECTURE (Full building, colonnade, arched door, roof)
-            # Left Temple (Ubosot)
-            temple_c = int(W * 0.19)
-            temple_w = int(W * 0.16)
-            temple_h = int(H * 0.27)
-            wall_h = int(temple_h * 0.42)
-            wall_top = horizon - wall_h
-            roof_h = temple_h - wall_h
+            # 3. Lanterns
+            for lx, ly, lines in lanterns:
+                l_c = int(lx * W)
+                l_r = int(ly * (horizon / 40.0 * 25.0))
+                for l_idx, line in enumerate(lines):
+                    r = l_r + l_idx
+                    if r < horizon:
+                        for ch_idx, ch in enumerate(line):
+                            c = l_c + ch_idx - len(line) // 2
+                            if 0 <= c < W:
+                                char_buf[r, c] = ch
+                                col_buf[r, c] = [255, 168, 45]
 
-            # Temple Wall & Pillars
-            wall_hw = int(temple_w * 0.42)
-            for r in range(wall_top, horizon):
-                for c in range(temple_c - wall_hw, temple_c + wall_hw + 1):
-                    if 0 <= c < W:
-                        char_buf[r, c] = '.' if c % 2 == 0 else ':'
-                        col_buf[r, c] = [110, 65, 30]
+            # 4. Skyline (Left Dome with 2 rows of windows, center spires, right pagoda)
+            # Left Dome
+            dome_c = int(W * 0.18)
+            dome_w = int(W * 0.15)
+            dome_h = int(H * 0.22)
+            for dc in range(-dome_w, dome_w + 1):
+                c = dome_c + dc
+                if 0 <= c < W:
+                    norm_x = abs(dc) / float(dome_w)
+                    profile = 1.0 if norm_x < 0.60 else math.sqrt(max(0.0, 1.0 - ((norm_x - 0.60) / 0.40) ** 2))
+                    top_r = horizon - int(profile * dome_h)
+                    for r in range(top_r, horizon):
+                        if r == top_r or abs(dc) == dome_w:
+                            char_buf[r, c] = '%'
+                            col_buf[r, c] = [195, 115, 40]
 
-            # Pillars
-            for p in range(6):
-                pc = (temple_c - wall_hw) + int(p * (wall_hw * 2 / 5.0))
-                for r in range(wall_top, horizon):
-                    if 0 <= pc < W:
-                        char_buf[r, pc] = '|'
-                        col_buf[r, pc] = [220, 145, 60]
+            # Windows on Left Dome
+            win_r1 = horizon - 3
+            win_r2 = horizon - 1
+            win_t1 = "%+  %o   #M  #%  %%  #%   MM"
+            win_t2 = "%+  %+   %+  %+  %+  %+   ##"
+            w_start = dome_c - len(win_t1) // 2
+            for i, ch in enumerate(win_t1):
+                c = w_start + i
+                if ch != ' ' and 0 <= c < W and win_r1 >= 0:
+                    char_buf[win_r1, c] = ch
+                    col_buf[win_r1, c] = [255, 175, 40]
+            for i, ch in enumerate(win_t2):
+                c = w_start + i
+                if ch != ' ' and 0 <= c < W and win_r2 >= 0:
+                    char_buf[win_r2, c] = ch
+                    col_buf[win_r2, c] = [255, 175, 40]
 
-            # Arched Golden Doorway
-            door_h = int(wall_h * 0.75)
-            for r in range(horizon - door_h, horizon):
-                for dc in range(-2, 3):
-                    c = temple_c + dc
-                    if 0 <= c < W:
-                        char_buf[r, c] = '0'
-                        col_buf[r, c] = [255, 215, 90]
-
-            # Three-tiered gabled roofs with chofah
-            for tier in range(3):
-                t_w = temple_w * (1.0 - tier * 0.22)
-                t_h = roof_h * (0.55 + tier * 0.22)
-                t_base = wall_top + int(tier * (roof_h * 0.18))
-                for dc in range(-int(t_w), int(t_w) + 1):
-                    c = temple_c + dc
-                    if 0 <= c < W:
-                        top_r = t_base - int(math.sqrt(max(0.0, 1.0 - (dc / t_w) ** 2)) * t_h)
-                        if 0 <= top_r < horizon:
-                            char_buf[top_r, c] = '%' if tier == 2 else '&'
-                            col_buf[top_r, c] = [200, 115, 45]
-                            if abs(dc) == int(t_w) and top_r - 1 >= 0:
-                                char_buf[top_r - 1, c] = '^'
-                                col_buf[top_r - 1, c] = [255, 180, 55]
-
-            # Left Bell Stupa
-            stupa_c = int(W * 0.07)
-            stupa_w = int(W * 0.05)
-            stupa_h = int(H * 0.24)
-            for r in range(horizon - int(stupa_h * 0.45), horizon):
-                norm_y = (r - (horizon - int(stupa_h * 0.45))) / float(stupa_h * 0.45)
-                bw = int(stupa_w * math.sin(norm_y * math.pi * 0.75 + 0.25))
-                for dc in range(-bw, bw + 1):
-                    c = stupa_c + dc
-                    if 0 <= c < W:
-                        char_buf[r, c] = '8'
-                        col_buf[r, c] = [235, 170, 55]
-            for sh in range(int(stupa_h * 0.55)):
-                r = horizon - int(stupa_h * 0.45) - sh
-                if 0 <= r < horizon and 0 <= stupa_c < W:
-                    char_buf[r, stupa_c] = '|' if sh % 2 == 0 else '!'
-                    col_buf[r, stupa_c] = [255, 215, 75]
-
-            # Right Temple & Pagoda
-            r_mount_c = int(W * 0.88)
-            r_mount_w = int(W * 0.07)
-            r_mount_h = int(H * 0.32)
-            for r in range(horizon - int(r_mount_h * 0.45), horizon):
-                norm_y = (r - (horizon - int(r_mount_h * 0.45))) / float(r_mount_h * 0.45)
-                bw = int(r_mount_w * math.sin(norm_y * math.pi * 0.75 + 0.25))
-                for dc in range(-bw, bw + 1):
-                    c = r_mount_c + dc
-                    if 0 <= c < W:
-                        char_buf[r, c] = '8'
-                        col_buf[r, c] = [235, 170, 55]
-            for sh in range(int(r_mount_h * 0.55)):
-                r = horizon - int(r_mount_h * 0.45) - sh
-                if 0 <= r < horizon and 0 <= r_mount_c < W:
-                    char_buf[r, r_mount_c] = '|' if sh % 2 == 0 else '!'
-                    col_buf[r, r_mount_c] = [255, 215, 75]
+            # Right Pagoda
+            r_pagoda_c = int(W * 0.85)
+            r_pagoda_w = int(W * 0.12)
+            r_pagoda_h = int(H * 0.32)
+            for dc in range(-r_pagoda_w, r_pagoda_w + 1):
+                c = r_pagoda_c + dc
+                if 0 <= c < W:
+                    top_r = horizon - int((1.0 - abs(dc) / float(r_pagoda_w)) ** 1.8 * r_pagoda_h)
+                    for r in range(top_r, horizon):
+                        if r == top_r or abs(dc) == r_pagoda_w:
+                            char_buf[r, c] = '#'
+                            col_buf[r, c] = [185, 105, 35]
 
             # Center Spires
-            for off, h_ratio in [(-6, 0.16), (-3, 0.21), (0, 0.28), (3, 0.22), (6, 0.17)]:
-                sc = center_x + int(off * (W / 120.0))
-                sh = int(H * h_ratio)
-                for i in range(sh):
-                    r = horizon - sh + i
-                    if 0 <= r < horizon and 0 <= sc < W:
-                        char_buf[r, sc] = '1' if i < sh - 2 else '|'
-                        col_buf[r, sc] = [255, int(180 + (i / sh) * 65), 50]
+            center_spires = [
+                "        11       ",
+                "        11       ",
+                "        11       ",
+                "   11   11   1   ",
+                "   11  #811  1   ",
+                "   11  06601 1   ",
+                "  1   06606# 11  ",
+                " 11  #06606I  1  ",
+                "111 0660601  111 "
+            ]
+            spire_start_r = horizon - len(center_spires)
+            spire_start_c = center_x - len(center_spires[0]) // 2
+            for sr, sline in enumerate(center_spires):
+                r = spire_start_r + sr
+                if 0 <= r < horizon:
+                    for sc, sch in enumerate(sline):
+                        c = spire_start_c + sc
+                        if sch != ' ' and 0 <= c < W:
+                            char_buf[r, c] = sch
+                            col_buf[r, c] = [255, 195, 50]
 
-            # Stone Riverside Embankment
+            # Horizon line
             for c in range(W):
-                char_buf[horizon, c] = '='
-                col_buf[horizon, c] = [130, 85, 40]
-                if c % 7 == 0:
-                    char_buf[horizon - 1, c] = '*'
-                    col_buf[horizon - 1, c] = [255, 190, 50]
+                if char_buf[horizon, c] == ' ':
+                    char_buf[horizon, c] = '-'
+                    col_buf[horizon, c] = [90, 55, 25]
 
-            # 4. Water Base
+            # 5. Deep Water Base
             for r in range(horizon + 1, H):
                 depth = (r - horizon) / max(1, H - horizon)
                 for c in range(W):
@@ -285,12 +275,12 @@ def main():
                         char_buf[r, c] = '~' if (c + r) % 3 == 0 else '-'
                         col_buf[r, c] = [int(7 + 8 * depth), int(30 + 20 * (1 - depth)), int(18 + 12 * (1 - depth))]
 
-            # 5. TRUE 3D PROJECTION OF COMPACT KRATHONG
+            # 6. TRUE 3D PROJECTION OF COMPACT KRATHONG
             auto_rot_y = t * 0.35
             bob_y = math.sin(t * 2.2) * 0.04
             cam_pitch = 0.44
             cam_dist = 4.6
-            fov = min(W, H) * 1.35
+            fov = min(W, H) * 1.30
 
             pts = pts_base.copy()
             pts = rot_y(pts, auto_rot_y)
@@ -299,7 +289,7 @@ def main():
             pts[:, 2] += cam_dist
 
             proj_x = (pts[:, 0] / pts[:, 2]) * fov * 2.0 + center_x
-            proj_y = -(pts[:, 1] / pts[:, 2]) * fov + (H * 0.64)
+            proj_y = -(pts[:, 1] / pts[:, 2]) * fov + (H * 0.66)
             depths = -pts[:, 2]
 
             px = proj_x.astype(np.int32)
@@ -347,14 +337,14 @@ def main():
                 z2 = y1 * sx + z1 * cx + cam_dist
 
                 cx_scr = int((x1 / z2) * fov * 2.0 + center_x)
-                cy_scr = int(-(y2 / z2) * fov + (H * 0.64))
+                cy_scr = int(-(y2 / z2) * fov + (H * 0.66))
 
                 if 0 <= cx_scr < W and 0 <= cy_scr < H:
                     char_buf[cy_scr, cx_scr] = '1' if f_phase < 0.3 else '*'
                     col_buf[cy_scr, cx_scr] = [255, 235, 80] if f_phase < 0.4 else [255, 110, 20]
 
             # Water Reflection
-            water_line = int(H * 0.63)
+            water_line = int(H * 0.65)
             for r in range(water_line, H):
                 dist = r - water_line
                 src_r = max(0, min(H - 1, water_line - int(dist * 0.72)))

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loy Krathong 3D High-Detail ASCII Panorama</title>
+    <title>Loy Krathong 16:9 ASCII Artwork</title>
     <style>
         * {
             box-sizing: border-box;
@@ -47,12 +47,11 @@
             canvas.height = window.innerHeight;
             COLS = Math.floor(canvas.width / CHAR_W);
             ROWS = Math.floor(canvas.height / CHAR_H);
-            initBackground();
         }
 
         // =========================================================
-        // 1. HIGH-DETAIL 3D MATHEMATICAL PARAMETRIC KRATHONG MODEL
-        // (กระทง 3 มิติแท้ๆ ปรับขนาดกะทัดรัดสง่างาม สมส่วนกับฉากวัด)
+        // 1. COMPACT 3D MATHEMATICAL PARAMETRIC KRATHONG MODEL
+        // (กระทง 3D แท้ๆ ขนาดกะทัดรัด ลอยสง่างามในแม่น้ำ)
         // =========================================================
         const krathong3DPoints = [];
         const krathong3DColors = [];
@@ -67,11 +66,10 @@
             ];
         }
 
-        // Build curved 3D petal (scaled gracefully: scaleFactor ~ 0.70)
         function build3DPetal(a, op, ln, wd, y0, r0, type) {
-            const uSteps = 20;
-            const vSteps = 10;
-            const scale = 0.70; // ขนาดกะทัดรัดสวยงาม
+            const uSteps = 18;
+            const vSteps = 9;
+            const scale = 0.55; // ขนาดกะทัดรัด สัดส่วนพอดีกับฉากหลัง
 
             ln *= scale;
             wd *= scale;
@@ -124,40 +122,40 @@
             krathong3DColors.length = 0;
             krathong3DTypes.length = 0;
 
-            const scale = 0.70;
+            const scale = 0.55;
 
-            // 1. Layer 1: Outermost Banana Leaves (18 กลีบ)
+            // 1. Layer 1: Outermost Banana Leaves
             for (let i = 0; i < 18; i++) {
                 const ang = (i / 18) * Math.PI * 2;
                 build3DPetal(ang, 1.38, 1.45, 0.48, -0.15, 0.95, 'leaf');
             }
 
-            // 2. Layer 2: Outermost Lotus Petals (16 กลีบ)
+            // 2. Layer 2: Outermost Lotus Petals
             for (let i = 0; i < 16; i++) {
                 const ang = ((i + 0.5) / 16) * Math.PI * 2;
                 build3DPetal(ang, 1.10, 1.32, 0.44, -0.08, 0.78, 'petal_out');
             }
 
-            // 3. Layer 3: Middle Lotus Petals (14 กลีบ)
+            // 3. Layer 3: Middle Lotus Petals
             for (let i = 0; i < 14; i++) {
                 const ang = (i / 14) * Math.PI * 2;
                 build3DPetal(ang, 0.78, 1.18, 0.40, -0.02, 0.58, 'petal_mid');
             }
 
-            // 4. Layer 4: Inner Lotus Petals (12 กลีบ)
+            // 4. Layer 4: Inner Lotus Petals
             for (let i = 0; i < 12; i++) {
                 const ang = ((i + 0.5) / 12) * Math.PI * 2;
                 build3DPetal(ang, 0.42, 1.02, 0.35, 0.04, 0.38, 'petal_in');
             }
 
-            // 5. Layer 5: Marigold Flower Ring (10 ช่อ)
+            // 5. Layer 5: Marigold Flower Ring
             for (let i = 0; i < 10; i++) {
                 const ang = (i / 10) * Math.PI * 2;
                 build3DPetal(ang, 0.22, 0.70, 0.28, 0.08, 0.22, 'flower');
             }
 
             // 6. Base Disc
-            for (let r = 0.20 * scale; r <= 1.40 * scale; r += 0.10 * scale) {
+            for (let r = 0.20 * scale; r <= 1.40 * scale; r += 0.12 * scale) {
                 for (let a = 0; a < Math.PI * 2; a += Math.PI / 16) {
                     const x = r * Math.cos(a);
                     const z = r * Math.sin(a);
@@ -172,7 +170,7 @@
             }
 
             // 7. 3D Candle Cylinder
-            for (let h = 0.05 * scale; h <= 1.05 * scale; h += 0.06 * scale) {
+            for (let h = 0.05 * scale; h <= 1.05 * scale; h += 0.07 * scale) {
                 for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
                     const rCandle = 0.085 * scale;
                     krathong3DPoints.push([rCandle * Math.cos(a), h, rCandle * Math.sin(a)]);
@@ -185,7 +183,7 @@
             const incenseAngles = [-0.18, 0.0, 0.18];
             for (let idx = 0; idx < 3; idx++) {
                 const tilt = incenseAngles[idx];
-                for (let h = 0.05 * scale; h <= 1.50 * scale; h += 0.07 * scale) {
+                for (let h = 0.05 * scale; h <= 1.50 * scale; h += 0.08 * scale) {
                     const xi = (idx - 1) * 0.07 * scale + Math.sin(tilt) * h;
                     const zi = 0.06 * scale + Math.cos(tilt) * 0.02 * scale;
                     const isTip = (h >= 1.40 * scale);
@@ -198,49 +196,43 @@
         initKrathongModel();
 
         // =========================================================
-        // 2. BACKGROUND PANORAMA DATA (STARS, LANTERNS)
+        // 2. EXACT BACKGROUND RECREATION (จากรูปภาพที่ผู้ใช้ให้มา)
         // =========================================================
-        let stars = [];
-        let lanterns = [];
 
-        function initBackground() {
-            stars = [];
-            const numStars = Math.floor(COLS * 0.85);
-            const starChars = [".", "+", "*", "·", "'", "`"];
-            for (let i = 0; i < numStars; i++) {
-                stars.push({
-                    x: Math.random(),
-                    y: Math.random() * 0.44,
-                    char: starChars[Math.floor(Math.random() * starChars.length)],
-                    speed: 1.2 + Math.random() * 2.8,
-                    phase: Math.random() * Math.PI * 2
-                });
-            }
+        // Moon Template from User Image
+        const exactMoonLines = [
+            "      #0000666..     ",
+            "   +06#000000&000    ",
+            "  006#0000+08#60000  ",
+            " 00000&600066000000  ",
+            " 000000#000000660    ",
+            " 000000#000000000    ",
+            " &0000600*60000      ",
+            "  000060000000       ",
+            "   000600000         ",
+            "    &006000          "
+        ];
 
-            lanterns = [
-                { x: 0.17, y: 0.18, lines: ["7&8#", "#8*:"], speed: 0.016 },
-                { x: 0.28, y: 0.28, lines: ["488", "1&85"], speed: 0.013 },
-                { x: 0.50, y: 0.12, lines: ["100#", "%&0#*", "9&8"], speed: 0.011 },
-                { x: 0.63, y: 0.22, lines: ["84&#", "%&0#*", "7#"], speed: 0.015 },
-                { x: 0.08, y: 0.25, lines: ["8#", "*:"], speed: 0.010 },
-                { x: 0.38, y: 0.20, lines: ["88", "1&"], speed: 0.009 },
-                { x: 0.74, y: 0.32, lines: ["40#", "98"], speed: 0.014 },
-                { x: 0.88, y: 0.16, lines: ["80", "*"], speed: 0.008 }
-            ];
-        }
+        // 4 Floating Sky Lanterns (ตรงตามตำแหน่งและตัวอักษรในรูปเป๊ะๆ)
+        const exactLanterns = [
+            // 1. ซ้ายบน
+            { relX: 0.155, relY: 0.38, lines: ["7&8#", "#0#", "#8*:"], speed: 0.012, seed: 1.1 },
+            // 2. ซ้ายล่าง
+            { relX: 0.275, relY: 0.58, lines: ["488", "#@0#", "1&66"], speed: 0.014, seed: 2.3 },
+            // 3. กลางบนสุด
+            { relX: 0.505, relY: 0.22, lines: ["100#-", "%&0#1-", "&4B"], speed: 0.010, seed: 3.5 },
+            // 4. ขวากลาง (ข้างดวงจันทร์)
+            { relX: 0.628, relY: 0.44, lines: ["33", "&4&#", "%&0#", "7#"], speed: 0.013, seed: 4.7 }
+        ];
 
-        const moonLines = [
-            "    #@0000000000@..    ",
-            "  +0&@000000000&0000+  ",
-            " 00000000000000&000000 ",
-            "00000000&0000000000000 ",
-            "0000000000000000000000 ",
-            "0000000000000000000000 ",
-            " 00000000000000000000  ",
-            " &000000000000000000   ",
-            "  +0000000000000000    ",
-            "   +0000000000000      ",
-            "     +000000000        "
+        // Stars from image
+        const fixedStarCoords = [
+            [0.05, 0.12, "+"], [0.09, 0.22, "*"], [0.14, 0.08, "·"], [0.18, 0.28, "o"],
+            [0.22, 0.15, "+"], [0.25, 0.42, "·"], [0.33, 0.18, "D"], [0.36, 0.12, "+"],
+            [0.39, 0.32, "·"], [0.44, 0.25, "+"], [0.48, 0.15, "*"], [0.55, 0.28, "·"],
+            [0.58, 0.12, "+"], [0.65, 0.16, "·"], [0.68, 0.28, "+"], [0.71, 0.08, "*"],
+            [0.85, 0.10, "+"], [0.91, 0.20, "·"], [0.95, 0.15, "*"], [0.97, 0.35, "+"],
+            [0.03, 0.35, "·"], [0.83, 0.42, "·"], [0.88, 0.38, "o"]
         ];
 
         window.addEventListener('resize', resize);
@@ -270,60 +262,60 @@
                 gridZ[r] = new Float32Array(COLS).fill(-99999.0);
             }
 
-            const horizonR = Math.floor(ROWS * 0.46);
+            const horizonR = Math.floor(ROWS * 0.54);
             const centerC = Math.floor(COLS * 0.50);
 
             // ==========================================
-            // 1. SKY & STARS
+            // 1. SKY & STARS (ตรงตามรูปภาพ)
             // ==========================================
-            for (let s of stars) {
-                const sc = Math.floor(s.x * COLS);
-                const sr = Math.floor(s.y * ROWS);
+            for (let s of fixedStarCoords) {
+                const sc = Math.floor(s[0] * COLS);
+                const sr = Math.floor(s[1] * ROWS);
                 if (sr < horizonR && sc >= 0 && sc < COLS) {
-                    const shimmer = Math.sin(t * s.speed + s.phase) * 0.5 + 0.5;
-                    if (shimmer > 0.3) {
-                        gridChar[sr][sc] = s.char;
-                        const bright = 175 + shimmer * 80;
-                        gridR[sr][sc] = bright;
-                        gridG[sr][sc] = bright;
-                        gridB[sr][sc] = Math.min(255, bright + 15);
-                        if (shimmer > 0.85) gridGlow[sr][sc] = 1;
-                    }
+                    const shimmer = Math.sin(t * 2.2 + sc) * 0.5 + 0.5;
+                    gridChar[sr][sc] = s[2];
+                    const bright = 180 + shimmer * 75;
+                    gridR[sr][sc] = bright;
+                    gridG[sr][sc] = bright;
+                    gridB[sr][sc] = Math.min(255, bright + 20);
+                    if (shimmer > 0.8) gridGlow[sr][sc] = 1;
                 }
             }
 
             // ==========================================
-            // 2. FULL MOON (@ & 0 WITH GLOW)
+            // 2. THE MOON (ตรงตามรูปภาพ: 0, 6, #, &, @, +, . พร้อมรัศมีเรืองแสง)
             // ==========================================
-            const moonCenterC = Math.floor(COLS * 0.80);
-            const moonCenterR = Math.floor(ROWS * 0.16);
-            const moonHalfW = Math.floor(moonLines[0].length / 2);
-            const moonHalfH = Math.floor(moonLines.length / 2);
+            const moonCenterC = Math.floor(COLS * 0.77);
+            const moonCenterR = Math.floor(ROWS * 0.28);
+            const moonHalfW = Math.floor(exactMoonLines[0].length / 2);
+            const moonHalfH = Math.floor(exactMoonLines.length / 2);
             const moonStartC = moonCenterC - moonHalfW;
             const moonStartR = moonCenterR - moonHalfH;
 
-            for (let dr = -moonHalfH - 8; dr <= moonHalfH + 12; dr++) {
+            // Halo glow around the moon
+            for (let dr = -moonHalfH - 7; dr <= moonHalfH + 10; dr++) {
                 const r = moonCenterR + dr;
                 if (r < 0 || r >= horizonR) continue;
-                for (let dc = -moonHalfW - 14; dc <= moonHalfW + 18; dc++) {
+                for (let dc = -moonHalfW - 12; dc <= moonHalfW + 15; dc++) {
                     const c = moonCenterC + dc;
                     if (c < 0 || c >= COLS) continue;
-                    const dNorm = Math.sqrt((dc / (moonHalfW + 10)) ** 2 + (dr / (moonHalfH + 7)) ** 2);
-                    if (dNorm > 0.92 && dNorm <= 1.85) {
-                        const aura = (1.0 - (dNorm - 0.92) / 0.93);
-                        if (Math.random() < aura * 0.42) {
+                    const dNorm = Math.sqrt((dc / (moonHalfW + 8)) ** 2 + (dr / (moonHalfH + 5)) ** 2);
+                    if (dNorm > 0.90 && dNorm <= 1.80) {
+                        const aura = (1.0 - (dNorm - 0.90) / 0.90);
+                        if (Math.random() < aura * 0.40) {
                             gridChar[r][c] = (dr + dc) % 2 === 0 ? "·" : "+";
-                            gridR[r][c] = 235 * aura;
-                            gridG[r][c] = 225 * aura;
-                            gridB[r][c] = 195 * aura;
+                            gridR[r][c] = 230 * aura;
+                            gridG[r][c] = 215 * aura;
+                            gridB[r][c] = 180 * aura;
                             gridGlow[r][c] = 1;
                         }
                     }
                 }
             }
 
-            for (let mr = 0; mr < moonLines.length; mr++) {
-                const line = moonLines[mr];
+            // Moon Solid Body
+            for (let mr = 0; mr < exactMoonLines.length; mr++) {
+                const line = exactMoonLines[mr];
                 const r = moonStartR + mr;
                 if (r < 0 || r >= horizonR) continue;
                 for (let mc = 0; mc < line.length; mc++) {
@@ -334,20 +326,27 @@
                         gridR[r][c] = 255;
                         gridG[r][c] = 250;
                         gridB[r][c] = 230;
-                        gridGlow[r][c] = 2;
+                        gridGlow[r][c] = 2; // Intense bloom
                     }
                 }
             }
 
+            // Small trailing dot below moon as seen in image
+            if (moonCenterR + moonHalfH + 2 < horizonR && moonCenterC < COLS) {
+                gridChar[moonCenterR + moonHalfH + 2][moonCenterC] = "0";
+                gridR[moonCenterR + moonHalfH + 2][moonCenterC] = 240;
+                gridG[moonCenterR + moonHalfH + 2][moonCenterC] = 220;
+                gridB[moonCenterR + moonHalfH + 2][moonCenterC] = 190;
+                gridGlow[moonCenterR + moonHalfH + 2][moonCenterC] = 1;
+            }
+
             // ==========================================
-            // 3. SKY LANTERNS (โคมลอยยี่เป็ง)
+            // 3. 4 FLOATING ORANGE LANTERNS (ตรงตามรูปภาพเป๊ะๆ)
             // ==========================================
-            for (let lant of lanterns) {
-                const driftX = (lant.x + t * lant.speed * 0.15) % 1.0;
-                const driftY = ((lant.y - t * lant.speed * 1.5) % 0.44 + 0.44) % 0.44;
-                const lCol = Math.floor(driftX * COLS);
-                const lRow = Math.floor(driftY * ROWS);
-                const flicker = Math.sin(t * 12 + lant.x * 20) * 0.2 + 0.8;
+            for (let lant of exactLanterns) {
+                const lCol = Math.floor(lant.relX * COLS);
+                const lRow = Math.floor(lant.relY * ROWS);
+                const flicker = Math.sin(t * 12 + lant.seed) * 0.15 + 0.85;
 
                 for (let lr = 0; lr < lant.lines.length; lr++) {
                     const line = lant.lines[lr];
@@ -368,186 +367,125 @@
             }
 
             // ==========================================
-            // 4. DISTINCT & COMPLETE THAI TEMPLE ARCHITECTURE
-            // (วัดไทยชัดเจน: เสาระเบียงคด, ผนังอุโบสถ, ซุ้มประตูทอง, ช่อฟ้าใบระกา, พระปรางค์)
+            // 4. EXACT HORIZON SKYLINE (LEFT DOME, CENTER SPIRES, RIGHT MOUNTAIN)
             // ==========================================
 
-            // Helper: Draw Complete Thai Ubosot (พระอุโบสถครบเครื่อง: หลังคา 3 ชั้น + ช่อฟ้า + ผนังอาคาร + เสาพาไล + ซุ้มประตู)
-            function drawFullTemple(centerCol, baseRow, totalWidth, totalHeight) {
-                const roofH = Math.floor(totalHeight * 0.58);
-                const wallH = totalHeight - roofH;
-                const wallTop = baseRow - wallH;
+            // A. LEFT DOME BUILDING WITH 2 ROWS OF WINDOWS (ตรงตามรูปเป๊ะๆ)
+            const leftDomeC = Math.floor(COLS * 0.18);
+            const leftDomeW = Math.floor(COLS * 0.15);
+            const leftDomeH = Math.floor(ROWS * 0.22);
+            const domeTopR = horizonR - leftDomeH;
 
-                // 1. Solid Building Body & Pillars (ผนังพระอุโบสถและเสาพาไล)
-                const wallHalfW = Math.floor(totalWidth * 0.42);
-                for (let r = wallTop; r < baseRow; r++) {
-                    for (let c = centerCol - wallHalfW; c <= centerCol + wallHalfW; c++) {
-                        if (c < 0 || c >= COLS) continue;
-                        // Interior warm temple glow
-                        gridChar[r][c] = (c % 2 === 0) ? ":" : ".";
-                        gridR[r][c] = 110; gridG[r][c] = 65; gridB[r][c] = 30;
-                    }
-                }
+            // Curved Dome Outline with +, =, %, #
+            for (let dc = -leftDomeW; dc <= leftDomeW; dc++) {
+                const c = leftDomeC + dc;
+                if (c < 0 || c >= COLS) continue;
+                const normX = Math.abs(dc) / leftDomeW;
+                // Flat top with curved steep sides
+                const profile = (normX < 0.60) ? 1.0 : Math.sqrt(Math.max(0, 1.0 - ((normX - 0.60) / 0.40) ** 2));
+                const topR = horizonR - Math.floor(profile * leftDomeH);
 
-                // Colonnade Pillars (เสาพาไลสี่เหลี่ยมเรียงรายรอบอุโบสถ)
-                const numPillars = 6;
-                const pillarSpacing = Math.floor((wallHalfW * 2) / (numPillars - 1));
-                for (let p = 0; p < numPillars; p++) {
-                    const pc = (centerCol - wallHalfW) + p * pillarSpacing;
-                    for (let r = wallTop; r < baseRow; r++) {
-                        if (pc >= 0 && pc < COLS) {
-                            gridChar[r][pc] = "|";
-                            gridR[r][pc] = 220; gridG[r][pc] = 145; gridB[r][pc] = 60;
-                            gridGlow[r][pc] = 1;
-                        }
-                    }
-                }
-
-                // Grand Central Arched Portal / Doorway (ซุ้มประตูกลางส่องแสงทองจ้า)
-                const doorW = 3;
-                const doorH = Math.floor(wallH * 0.75);
-                for (let r = baseRow - doorH; r < baseRow; r++) {
-                    for (let dc = -doorW; dc <= doorW; dc++) {
-                        const c = centerCol + dc;
-                        if (c >= 0 && c < COLS) {
-                            const isArch = (r === baseRow - doorH);
-                            gridChar[r][c] = isArch ? "∩" : "0";
-                            gridR[r][c] = 255; gridG[r][c] = 210; gridB[r][c] = 90;
-                            gridGlow[r][c] = 2; // สว่างจ้าเหมือนเปิดประตูรับแสงทอง
-                        }
-                    }
-                }
-
-                // Illuminated Temple Windows (หน้าต่างเรือนแก้วส่องไฟส้ม)
-                for (let side of [-1, 1]) {
-                    const winC = centerCol + side * Math.floor(wallHalfW * 0.55);
-                    for (let r = wallTop + 2; r < baseRow - 2; r++) {
-                        if (winC >= 0 && winC < COLS) {
-                            gridChar[r][winC] = "#";
-                            gridR[r][winC] = 255; gridG[r][winC] = 170; gridB[r][winC] = 40;
-                            gridGlow[r][winC] = 1;
-                        }
-                    }
-                }
-
-                // 2. Three-Tiered Overlapping Gabled Roofs with Chofah (หลังคาซ้อน 3 ชั้นประดับช่อฟ้า)
-                for (let tier = 0; tier < 3; tier++) {
-                    const tierWidth = totalWidth * (1.0 - tier * 0.22);
-                    const tierH = roofH * (0.55 + tier * 0.22);
-                    const tierBase = wallTop + Math.floor(tier * (roofH * 0.18));
-
-                    for (let dc = -Math.floor(tierWidth); dc <= Math.floor(tierWidth); dc++) {
-                        const c = centerCol + dc;
-                        if (c < 0 || c >= COLS) continue;
-                        const prog = Math.sqrt(Math.max(0, 1.0 - (dc / tierWidth) ** 2));
-                        const roofR = tierBase - Math.floor(prog * tierH);
-
-                        if (roofR >= 0 && roofR < horizonR) {
-                            // Roof tiles & bargeboard (สันหลังคาและช่อฟ้า)
-                            gridChar[roofR][c] = (tier === 2) ? "%" : "&";
-                            gridR[roofR][c] = 200; gridG[roofR][c] = 115; gridB[roofR][c] = 45;
-                            gridGlow[roofR][c] = 1;
-
-                            // Chofah at roof ridge tips (ยอดช่อฟ้าปลายจั่วทั้งสองข้าง)
-                            if (Math.abs(dc) === Math.floor(tierWidth) && roofR - 1 >= 0) {
-                                gridChar[roofR - 1][c] = "^";
-                                gridR[roofR - 1][c] = 255; gridG[roofR - 1][c] = 180; gridB[roofR - 1][c] = 55;
-                                gridGlow[roofR - 1][c] = 2;
-                            }
-                        }
-                    }
-                }
-
-                // Gilded Gable Pediment (หน้าบันอุโบสถลวดลายกนกสีทอง)
-                const pedimentTop = wallTop - Math.floor(roofH * 0.65);
-                for (let r = pedimentTop; r < wallTop; r++) {
-                    const span = Math.floor((r - pedimentTop) * 0.85);
-                    for (let dc = -span; dc <= span; dc++) {
-                        const c = centerCol + dc;
-                        if (c >= 0 && c < COLS) {
-                            gridChar[r][c] = "*";
-                            gridR[r][c] = 230; gridG[r][c] = 160; gridB[r][c] = 50;
-                            gridGlow[r][c] = 1;
-                        }
+                for (let r = topR; r < horizonR; r++) {
+                    if (r === topR || Math.abs(dc) === leftDomeW) {
+                        // Golden-orange contour outline
+                        gridChar[r][c] = (r === topR && Math.abs(dc) < leftDomeW * 0.5) ? "=" : "%";
+                        gridR[r][c] = 195; gridG[r][c] = 115; gridB[r][c] = 40;
+                        gridGlow[r][c] = 1;
+                    } else if (r < horizonR - 4 && (r % 2 === 0) && (c % 2 === 0)) {
+                        // Dark interior shading
+                        gridChar[r][c] = ":";
+                        gridR[r][c] = 80; gridG[r][c] = 45; gridB[r][c] = 20;
                     }
                 }
             }
 
-            // Helper: Draw Majestic Stupa / Prang (พระเจดีย์ระฆังคว่ำ & พระปรางค์)
-            function drawStupaBell(cCol, baseR, width, height) {
-                // Terrace Base
-                for (let r = baseR - 4; r < baseR; r++) {
-                    for (let dc = -width - 2; dc <= width + 2; dc++) {
-                        const c = cCol + dc;
-                        if (c >= 0 && c < COLS) {
-                            gridChar[r][c] = "=";
-                            gridR[r][c] = 150; gridG[r][c] = 95; gridB[r][c] = 40;
-                        }
-                    }
+            // EXACT TWO ROWS OF ILLUMINATED WINDOWS FROM IMAGE:
+            // Row 1: %+  %o   #M  #%  %%  #%   MM
+            // Row 2: %+  %+   %+  %+  %+  %+   ##
+            const winText1 = "%+  %o   #M  #%  %%  #%   MM";
+            const winText2 = "%+  %+   %+  %+  %+  %+   ##";
+            const winR1 = horizonR - 3;
+            const winR2 = horizonR - 1;
+            const winStartC = leftDomeC - Math.floor(winText1.length / 2);
+
+            for (let i = 0; i < winText1.length; i++) {
+                const c = winStartC + i;
+                const ch = winText1[i];
+                if (ch !== " " && c >= 0 && c < COLS && winR1 >= 0) {
+                    gridChar[winR1][c] = ch;
+                    gridR[winR1][c] = 255; gridG[winR1][c] = 175; gridB[winR1][c] = 40;
+                    gridGlow[winR1][c] = 1;
                 }
-                // Bell Body (องค์ระฆังสีทองอร่าม)
-                const bellH = Math.floor(height * 0.45);
-                const bellBase = baseR - 4;
-                for (let r = bellBase - bellH; r < bellBase; r++) {
-                    const normY = (r - (bellBase - bellH)) / bellH;
-                    const bW = Math.floor(width * Math.sin(normY * Math.PI * 0.75 + 0.25));
-                    for (let dc = -bW; dc <= bW; dc++) {
-                        const c = cCol + dc;
-                        if (c >= 0 && c < COLS) {
-                            gridChar[r][c] = (Math.abs(dc) === bW) ? "#" : "8";
-                            gridR[r][c] = 235; gridG[r][c] = 170; gridB[r][c] = 55;
-                            gridGlow[r][c] = 1;
-                        }
-                    }
+            }
+            for (let i = 0; i < winText2.length; i++) {
+                const c = winStartC + i;
+                const ch = winText2[i];
+                if (ch !== " " && c >= 0 && c < COLS && winR2 >= 0) {
+                    gridChar[winR2][c] = ch;
+                    gridR[winR2][c] = 255; gridG[winR2][c] = 175; gridB[winR2][c] = 40;
+                    gridGlow[winR2][c] = 1;
                 }
-                // Spire Needle & Rings (บัลลังก์ ปล้องไฉน ปลียอด)
-                const spireH = height - bellH;
-                for (let sh = 0; sh < spireH; sh++) {
-                    const r = bellBase - bellH - sh;
-                    if (r >= 0 && r < horizonR && cCol >= 0 && cCol < COLS) {
-                        gridChar[r][cCol] = (sh % 2 === 0) ? "|" : "!";
-                        gridR[r][cCol] = 255; gridG[r][cCol] = 215; gridB[r][cCol] = 75;
-                        gridGlow[r][cCol] = 2;
+            }
+
+            // B. RIGHT TALL TRIANGULAR MOUNTAIN / PAGODA (ตรงตามรูป)
+            const rightMountC = Math.floor(COLS * 0.85);
+            const rightMountW = Math.floor(COLS * 0.12);
+            const rightMountH = Math.floor(ROWS * 0.32);
+
+            for (let dc = -rightMountW; dc <= rightMountW; dc++) {
+                const c = rightMountC + dc;
+                if (c < 0 || c >= COLS) continue;
+                const prog = 1.0 - Math.abs(dc) / rightMountW;
+                const topR = horizonR - Math.floor((prog ** 1.8) * rightMountH);
+
+                for (let r = topR; r < horizonR; r++) {
+                    if (r === topR || Math.abs(dc) === rightMountW) {
+                        gridChar[r][c] = "#";
+                        gridR[r][c] = 185; gridG[r][c] = 105; gridB[r][c] = 35;
+                        gridGlow[r][c] = 1;
+                    } else if ((r % 2 === 0) && (c % 2 === 0)) {
+                        gridChar[r][c] = ".";
+                        gridR[r][c] = 60; gridG[r][c] = 35; gridB[r][c] = 18;
                     }
                 }
             }
 
-            // A. LEFT PANORAMA: Grand Royal Ubosot & Bell Stupa
-            const leftTempleC = Math.floor(COLS * 0.19);
-            drawFullTemple(leftTempleC, horizonR, Math.floor(COLS * 0.16), Math.floor(ROWS * 0.27));
-            drawStupaBell(Math.floor(COLS * 0.07), horizonR, Math.floor(COLS * 0.05), Math.floor(ROWS * 0.24));
-
-            // B. RIGHT PANORAMA: Riverfront Pavilion & Pagoda
-            const rightTempleC = Math.floor(COLS * 0.70);
-            drawFullTemple(rightTempleC, horizonR, Math.floor(COLS * 0.13), Math.floor(ROWS * 0.23));
-            drawStupaBell(Math.floor(COLS * 0.88), horizonR, Math.floor(COLS * 0.07), Math.floor(ROWS * 0.32));
-
-            // C. CENTER: Wat Arun Grand Central Prang & Multi-Spires
-            const spireConfigs = [
-                { offset: -7, h: Math.floor(ROWS * 0.16) },
-                { offset: -3, h: Math.floor(ROWS * 0.21) },
-                { offset:  0, h: Math.floor(ROWS * 0.28) },
-                { offset:  3, h: Math.floor(ROWS * 0.22) },
-                { offset:  7, h: Math.floor(ROWS * 0.17) }
+            // C. CENTER TALL SPIRES & BLAZING GOLDEN GLOW (ตรงตามรูปเป๊ะๆ)
+            // Spires with 11, 1, |
+            const centerSpireLines = [
+                "        11       ",
+                "        11       ",
+                "        11       ",
+                "   11   11   1   ",
+                "   11  #811  1   ",
+                "   11  06601 1   ",
+                "  1   06606# 11  ",
+                " 11  #06606I  1  ",
+                "111 0660601  111 "
             ];
-            for (let sp of spireConfigs) {
-                const sc = centerC + sp.offset;
-                if (sc < 0 || sc >= COLS) continue;
-                for (let i = 0; i < sp.h; i++) {
-                    const r = horizonR - sp.h + i;
-                    if (r >= 0 && r < horizonR) {
-                        gridChar[r][sc] = (i === sp.h - 1) ? "!" : "|";
-                        gridR[r][sc] = 255;
-                        gridG[r][sc] = 180 + (i / sp.h) * 65;
-                        gridB[r][sc] = 50;
-                        gridGlow[r][sc] = 2;
+            const spireStartR = horizonR - centerSpireLines.length;
+            const spireStartC = centerC - Math.floor(centerSpireLines[0].length / 2);
+
+            for (let sr = 0; sr < centerSpireLines.length; sr++) {
+                const line = centerSpireLines[sr];
+                const r = spireStartR + sr;
+                if (r < 0 || r >= horizonR) continue;
+                for (let sc = 0; sc < line.length; sc++) {
+                    const ch = line[sc];
+                    const c = spireStartC + sc;
+                    if (ch !== " " && c >= 0 && c < COLS) {
+                        gridChar[r][c] = ch;
+                        gridR[r][c] = 255;
+                        gridG[r][c] = 190 + (sr / centerSpireLines.length) * 55;
+                        gridB[r][c] = 50;
+                        gridGlow[r][c] = 2; // Brilliant golden glow
                     }
                 }
             }
 
-            // Radial Golden Light behind Krathong
-            const blastRadiusC = Math.floor(COLS * 0.20);
-            const blastRadiusR = Math.floor(ROWS * 0.15);
+            // Blazing golden explosion of light along horizon in center
+            const blastRadiusC = Math.floor(COLS * 0.16);
+            const blastRadiusR = Math.floor(ROWS * 0.10);
             for (let dr = -blastRadiusR; dr <= 2; dr++) {
                 const r = horizonR + dr;
                 if (r < 0 || r >= ROWS) continue;
@@ -556,7 +494,7 @@
                     if (c < 0 || c >= COLS) continue;
                     const dNorm = Math.sqrt((dc / blastRadiusC) ** 2 + (dr / blastRadiusR) ** 2);
                     if (dNorm <= 1.0) {
-                        const intensity = (1.0 - dNorm) ** 1.5;
+                        const intensity = (1.0 - dNorm) ** 1.3;
                         gridR[r][c] = Math.min(255, gridR[r][c] + 255 * intensity);
                         gridG[r][c] = Math.min(255, gridG[r][c] + 225 * intensity);
                         gridB[r][c] = Math.min(255, gridB[r][c] + 130 * intensity);
@@ -565,20 +503,16 @@
                 }
             }
 
-            // Stone riverside wall & landing steps along the water
+            // Horizon characters
             for (let c = 0; c < COLS; c++) {
-                gridChar[horizonR][c] = "=";
-                gridR[horizonR][c] = 130; gridG[horizonR][c] = 85; gridB[horizonR][c] = 40;
-                // Lantern posts on wall
-                if (c % 7 === 0) {
-                    gridChar[horizonR - 1][c] = "*";
-                    gridR[horizonR - 1][c] = 255; gridG[horizonR - 1][c] = 190; gridB[horizonR - 1][c] = 50;
-                    gridGlow[horizonR - 1][c] = 2;
+                if (gridChar[horizonR][c] === " ") {
+                    gridChar[horizonR][c] = "-";
+                    gridR[horizonR][c] = 90; gridG[horizonR][c] = 55; gridB[horizonR][c] = 25;
                 }
             }
 
             // ==========================================
-            // 5. DEEP DARK GREEN WATER (ผิวน้ำสีเขียวเข้ม)
+            // 5. DEEP DARK GREEN / TEAL WATER BASE
             // ==========================================
             for (let r = horizonR + 1; r < ROWS; r++) {
                 const depthProg = (r - horizonR) / (ROWS - horizonR);
@@ -600,12 +534,12 @@
 
             // ==========================================
             // 6. TRUE 3D PROJECTION OF COMPACT DETAILED KRATHONG
-            // (ฉายภาพ 3D แท้ๆ ขนาดกะทัดรัดสง่างาม ไม่แย่งซีนวัด)
+            // (กระทง 3D กะทัดรัดสง่างาม ลอยน้ำอยู่ด้านหน้าฉากนี้)
             // ==========================================
             const autoRotY = t * 0.35;
             const bobY = Math.sin(t * 2.2) * 0.04;
             const camPitch = 0.44;
-            const camDist = 4.6; // Slightly farther for elegant compact scale
+            const camDist = 4.6;
             const fov = Math.min(COLS * CHAR_W, ROWS * CHAR_H) * 0.82;
 
             const projected3D = [];
@@ -627,7 +561,7 @@
                 if (z2 <= 0.2) continue;
 
                 const screenX = (x1 / z2) * (fov / CHAR_W) + centerC;
-                const screenY = -(y2 / z2) * (fov / CHAR_H) + (ROWS * 0.64);
+                const screenY = -(y2 / z2) * (fov / CHAR_H) + (ROWS * 0.66);
 
                 const c = Math.floor(screenX);
                 const r = Math.floor(screenY);
@@ -694,7 +628,7 @@
                 let z2 = y1 * sx + z1 * cx + camDist;
 
                 const c = Math.floor((x1 / z2) * (fov / CHAR_W) + centerC);
-                const r = Math.floor(-(y2 / z2) * (fov / CHAR_H) + (ROWS * 0.64));
+                const r = Math.floor(-(y2 / z2) * (fov / CHAR_H) + (ROWS * 0.66));
 
                 if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
                     let col = fPhase < 0.25 ? [255, 255, 240] : fPhase < 0.65 ? [255, 205, 50] : [255, 90, 20];
@@ -709,7 +643,7 @@
             // ==========================================
             // 7. EXPANSIVE 3D WATER REFLECTION
             // ==========================================
-            const waterLine = Math.floor(ROWS * 0.63);
+            const waterLine = Math.floor(ROWS * 0.65);
             for (let i = 0; i < projected3D.length; i += 2) {
                 const pt = projected3D[i];
                 if (pt.r < waterLine) {
