@@ -815,14 +815,15 @@
                 }
             }
 
-            // 3D Candle Flame Particles (เปลวเทียนสว่างจ้าสั่นไหว 3D)
+            // 3D Candle Flame rotating WITH the krathong (เปลวเทียนหมุนตามกระทง)
             const candleTop = 0.90 + bobY;
-            for (let f = 0; f < 36; f++) {
-                const fPhase = ((t * 2.5 + f * 0.10) % 1.0);
+            for (let f = 0; f < 42; f++) {
+                const fPhase = ((t * 2.5 + f / 42) % 1.0);
                 const fy = candleTop + fPhase * 0.52;
-                const fr = 0.065 * (1.0 - fPhase);
-                const fa = f * 2.4;
-                const fx = Math.cos(fa) * fr + Math.sin(t * 16) * 0.02 * fPhase;
+                const fr = 0.075 * (1.0 - fPhase);
+                // หมุนตาม autoRotY เดียวกับตัวกระทง
+                const fa = (f * 2.4) + autoRotY * 1.2 + Math.sin(t * 6 + f) * 0.15;
+                const fx = Math.cos(fa) * fr;
                 const fz = Math.sin(fa) * fr;
 
                 const cy = Math.cos(autoRotY), sy = Math.sin(autoRotY);
@@ -844,6 +845,42 @@
                     gridG[r][c] = col[1];
                     gridB[r][c] = col[2];
                     gridGlow[r][c] = 2;
+                }
+            }
+
+            // ควันเทียนลอยขึ้นหมุนตามกระทง (rising smoke swirls, rotates with krathong)
+            for (let s = 0; s < 34; s++) {
+                const sPhase = ((t * 0.55 + s / 34) % 1.0);
+                const smokeH = sPhase * 2.3; // สูงขึ้นเหนือเปลวไฟ
+                // เกลียวควัน: รัศมีขยาย + หมุนตามการหมุนของกระทง
+                const swirlA = (s * 1.9) + autoRotY * 1.2 + sPhase * 3.2;
+                const sr0 = (0.05 + sPhase * 0.30) * (1.0 + 0.25 * Math.sin(t * 1.8 + s));
+                const fx = Math.cos(swirlA) * sr0 + Math.sin(t * 1.1 + s * 2) * 0.05 * sPhase;
+                const fz = Math.sin(swirlA) * sr0;
+                const fy = candleTop + smokeH;
+
+                const cy = Math.cos(autoRotY), sy = Math.sin(autoRotY);
+                let x1 = fx * cy + fz * sy;
+                let z1 = -fx * sy + fz * cy;
+                let y1 = fy;
+
+                const cx = Math.cos(camPitch), sx = Math.sin(camPitch);
+                let y2 = y1 * cx - z1 * sx;
+                let z2 = y1 * sx + z1 * cx + camDist;
+
+                if (z2 <= 0.2) continue;
+
+                const c = Math.floor((x1 / z2) * (fov / CHAR_W) + centerC);
+                const r = Math.floor(-(y2 / z2) * (fov / CHAR_H) + (ROWS * 0.68));
+
+                if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+                    const fade = 1.0 - sPhase;
+                    const dim = 0.30 + fade * 0.35;
+                    gridChar[r][c] = fade > 0.7 ? "§" : (fade > 0.4 ? "°" : ".");
+                    gridR[r][c] = 190 * dim;
+                    gridG[r][c] = 195 * dim;
+                    gridB[r][c] = 205 * dim;
+                    gridGlow[r][c] = (fade > 0.7) ? 1 : 0;
                 }
             }
 
